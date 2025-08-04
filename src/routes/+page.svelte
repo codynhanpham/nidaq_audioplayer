@@ -26,6 +26,7 @@
 
   async function check_ws_server(event: Event) {
     event.preventDefault();
+    let pid = await invoke("get_ws_pid");
     try {
       // Connect to the WebSocket server
       const ws = new WebSocket('ws://localhost:21749');
@@ -38,7 +39,7 @@
       
       ws.onmessage = (event) => {
         console.log('Received message:', event.data);
-        ws_info = `WebSocket Response: ${event.data}`;
+        ws_info = `WebSocket Response: ${event.data} + PID: ${pid}`;
         // Close the connection after receiving the response
         ws.close();
       };
@@ -91,6 +92,7 @@
     <button type="submit">Check WS Server</button>
   </form>
   <p>{ws_info}</p>
+
 </main>
 
 <style>

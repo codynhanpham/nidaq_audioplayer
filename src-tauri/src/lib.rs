@@ -84,7 +84,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             exit_app,
             py_nidaqmx::sysinfo::get_nidaq_sysinfo,
-            py_nidaqmx::sysinfo::get_pyenv_sysinfo
+            py_nidaqmx::sysinfo::get_pyenv_sysinfo,
+            py_nidaqmx::pyws::get_ws_pid,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -114,11 +115,18 @@ pub fn run() {
                 if let Ok(mut app_data) = state.lock() {
                     if let Some(mut process) = app_data.python_process.take() {
                         if let Err(e) = process.kill() {
-                            log::error!("Failed to terminate Python WebSocket process: {}", e);
+                            log::error!("Failed to terminate Python process: {}", e);
                         } else {
-                            log::info!("Python WebSocket process terminated successfully");
+                            log::info!("Python process terminated successfully");
                         }
                     }
+                }
+                // Check if the python websocket server is running and close it
+                if let Ok(pid) = py_nidaqmx::pyws::get_ws_pid() {
+                    log::info!("WebSocket server (PID {}) still running, terminating...", pid);
+                    utils::sysproc::kill_pid(pid as u32).unwrap_or_else(|e| {
+                        log::error!("Failed to kill WebSocket server: {}", e);
+                    });
                 }
 
                 _app_handle
