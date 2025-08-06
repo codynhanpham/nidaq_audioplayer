@@ -18,7 +18,7 @@ ai0 = '/ai0'
 ai1 = '/ai1'
 
 fs = 44100  # sample rate for input and output (will be overridden by audio file sample rate)
-audio_file_path = "C:/Users/bnpco/Music/A Place Further than the Universe/Original Soundtrack 24bit/48. Mata ne.flac"  # path to your audio file
+audio_file_path = "D:/JOBS/WashU_Neuroscience/Behavior/WU-SMAC/PlacePreference/Stimuli/playlists/calibration-sweep__linear_220.0Hz_140000.0Hz_10000ms_60.0dB_@300000Hz.wav"  # path to your audio file
 
 NR_OF_CHANNELS = 2  # this script supports only 2 I/O channels
 frames_per_buffer = 10  # nr of frames fitting into the buffer of each measurement channel

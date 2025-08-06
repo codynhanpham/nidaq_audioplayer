@@ -26,7 +26,11 @@
     import { TitleBar } from '$lib/components/app-titlebar';
 	import type { MenubarData } from '$lib/components/app-titlebar/menubar.svelte';
 
+    import { StatusBar } from '$lib/components/app-statusbar';
+    import { MediaPlayer, MediaPlayerData } from '$lib/components/media-player';
+
     import { onMount, onDestroy } from 'svelte';
+  import { cn } from '$lib/utils';
 
     let { children } = $props();
 
@@ -61,12 +65,20 @@
 <ModeWatcher />
 
 
-<div class="flex flex-col h-full w-full">
+<div class="flex flex-col h-full w-full gap-0 text-wrap break-all text-ellipsis">
 	<TitleBar bind:menubarData />
 	
-	<!-- <div class="mt-8 bg-background/90 border-b border-primary/25">
-		<Controller />
-	</div> -->
-	
-	{@render children?.()}
+    <div class={cn(
+        "mt-8 mb-6 h-full",
+        (MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer) ? "pb-18" : "pb-0"
+    )}>
+        {@render children?.()}
+    </div>
+
+    {#if MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer}
+
+        <MediaPlayer />
+    {/if}
+
+    <StatusBar />
 </div>

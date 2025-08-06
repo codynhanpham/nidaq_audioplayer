@@ -35,7 +35,7 @@
 <div
 	data-tauri-drag-region
 	class={cn(
-		'bg-background/90 pointer-events-auto fixed left-0 right-0 top-0 z-[99999] h-fit border-b border-primary/25 hover:cursor-grab active:cursor-grabbing',
+		'bg-accent/30 pointer-events-auto fixed left-0 right-0 top-0 z-[99999] h-fit border-b hover:cursor-grab active:cursor-grabbing',
 		className,
 		'!max-h-fit'
 	)}
