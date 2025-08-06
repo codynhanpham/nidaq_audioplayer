@@ -150,7 +150,9 @@ with ni.Task() as ao_task, ni.Task() as ai_task, ni.Task() as do_task:
     # DIGITAL PULSE FOR EXTERNAL TRIGGERING
     do_task.do_channels.add_do_chan(dev_name + '/port0/line0',
                                     line_grouping=LineGrouping.CHAN_PER_LINE)
-    do_task.write(False)
+    do_task.do_channels.add_do_chan(dev_name + '/port0/line1',
+                                    line_grouping=LineGrouping.CHAN_PER_LINE)
+    do_task.write([False, False])
 
     # Create audio generator and fill output buffer
     output_frame_generator = audio_generator(audio_file_path)
@@ -165,10 +167,10 @@ with ni.Task() as ao_task, ni.Task() as ai_task, ni.Task() as do_task:
 
     ai_task.start()  # arms ai but does not trigger
     ao_task.start()  # triggers both ao and ai simultaneously
-    do_task.write(True)
+    do_task.write([True, True])
 
     time.sleep(0.01)      # 10ms pulse
-    do_task.write(False)  # Set LOW
+    # do_task.write([False, False])  # Set LOW
 
     # Wait for audio to complete or user input
     print("Audio playing... Press CTRL+C to stop early or wait for audio to finish.")
@@ -179,13 +181,13 @@ with ni.Task() as ao_task, ni.Task() as ai_task, ni.Task() as do_task:
             time.sleep(0.05)
         ai_task.stop()
         ao_task.stop()
-        do_task.write(False)
+        do_task.write([False, False])
         do_task.stop()
         print("\nAudio playback completed!")
     except KeyboardInterrupt:
         ai_task.stop()
         ao_task.stop()
-        do_task.write(False)
+        do_task.write([False, False])
         do_task.stop()
         print("\nAudio playback stopped early.")
     except:

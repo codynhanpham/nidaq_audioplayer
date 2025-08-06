@@ -48,7 +48,7 @@
 		// 'bg-blue-100'
 	)}
 >
-    <div class="group relative w-full h-full flex items-center justify-between px-4">
+    <div class="group/player relative w-full h-full flex items-center justify-between px-4">
         <div
 			data-progress-slider-wrapper
 			class="absolute left-0 -top-1 w-full h-fit"
@@ -56,7 +56,7 @@
 			<Slider
 				type="single"
 				data-progress-slider
-				class="group py-1 [&_[data-slot='slider-track']]:!cursor-pointer [&_[data-slot='slider-track']]:!mask-linear-[270deg,transparent,black_calc(var(--spacing)*1.5+0px)),black_calc(100%-var(--spacing)*1.5+0px)),transparent] [&_[data-slot='slider-track']]:!mask-r-from-99% [&_[data-slot='slider-track']]:!h-1 [&_[data-slot='slider-range']]:!left-[calc(var(--spacing)*1.5+0px))] [&_[data-slot='slider-range']]:!bg-primary/80 [&_[data-slot='slider-range']]:!backdrop-blur-3xl [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!opacity-0 [&_[data-slot='slider-thumb']]:group-hover:!opacity-100 [&_[data-slot='slider-thumb']]:group-active:!opacity-100 [&_[data-slot='slider-thumb']]:!transition-opacity [&_[data-slot='slider-thumb']]:!duration-150"
+				class="group/slider py-1 [&_[data-slot='slider-track']]:!cursor-pointer [&_[data-slot='slider-track']]:!mask-linear-[270deg,transparent,black_calc(var(--spacing)*1.5+0px)),black_calc(100%-var(--spacing)*1.5+0px)),transparent] [&_[data-slot='slider-track']]:!mask-r-from-99% [&_[data-slot='slider-track']]:!h-1 [&_[data-slot='slider-range']]:!left-[calc(var(--spacing)*1.5+0px))] [&_[data-slot='slider-range']]:!bg-primary/80 [&_[data-slot='slider-range']]:!backdrop-blur-3xl [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!bg-primary [&_[data-slot='slider-thumb']]:!border-none [&_[data-slot='slider-thumb']]:!opacity-0 [&_[data-slot='slider-thumb']]:group-hover/player:!opacity-100 [&_[data-slot='slider-thumb']]:group-active/player:!opacity-100 [&_[data-slot='slider-thumb']]:!transition-opacity [&_[data-slot='slider-thumb']]:!duration-150"
 				value={calcSliderValue(MediaPlayerData.progress, MediaPlayerData.duration)}
 				min={0}
 				max={Math.ceil((MediaPlayerData.duration || 0) * 1000)}
