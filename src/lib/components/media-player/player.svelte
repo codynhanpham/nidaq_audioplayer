@@ -6,6 +6,7 @@
 
 
 <script lang="ts">
+	import "./style.css";
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { onMount } from 'svelte';
 	import { cn } from '$lib/utils.js';
@@ -14,7 +15,13 @@
     
     import { Slider } from "$lib/components/ui/slider/index.js";
 
-	import IconMinus from '@lucide/svelte/icons/minus';
+	import {
+		Play,
+		Pause,
+		SkipBack,
+		SkipForward,
+	} from '@lucide/svelte/icons';
+
 	import { MediaPlayerData } from './playerData.svelte';
 
 	let {
@@ -42,13 +49,14 @@
 
 
 <section class={cn(
+		'mediaplayer-override isolate',
 		'bg-background/80 backdrop-blur-3xl pointer-events-auto fixed left-0 bottom-6 z-[99999]',
 		className,
 		'w-full h-18',
 		// 'bg-blue-100'
 	)}
 >
-    <div class="group/player relative w-full h-full flex items-center justify-between px-4">
+    <div class="group/player relative w-full h-full flex items-center justify-between px-4 pt-1">
         <div
 			data-progress-slider-wrapper
 			class="absolute left-0 -top-1 w-full h-fit"
@@ -56,17 +64,32 @@
 			<Slider
 				type="single"
 				data-progress-slider
-				class="group/slider py-1 [&_[data-slot='slider-track']]:!cursor-pointer [&_[data-slot='slider-track']]:!mask-linear-[270deg,transparent,black_calc(var(--spacing)*1.5+0px)),black_calc(100%-var(--spacing)*1.5+0px)),transparent] [&_[data-slot='slider-track']]:!mask-r-from-99% [&_[data-slot='slider-track']]:!h-1 [&_[data-slot='slider-range']]:!left-[calc(var(--spacing)*1.5+0px))] [&_[data-slot='slider-range']]:!bg-primary/80 [&_[data-slot='slider-range']]:!backdrop-blur-3xl [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!bg-primary [&_[data-slot='slider-thumb']]:!border-none [&_[data-slot='slider-thumb']]:!opacity-0 [&_[data-slot='slider-thumb']]:group-hover/player:!opacity-100 [&_[data-slot='slider-thumb']]:group-active/player:!opacity-100 [&_[data-slot='slider-thumb']]:!transition-opacity [&_[data-slot='slider-thumb']]:!duration-150"
+				thumbPositioning={"exact"}
+				class="group/slider py-1 w-[calc(100%-var(--spacing)*2)] mx-auto [&_[data-slot='slider-track']]:!cursor-pointer [&_[data-slot='slider-track']]:!mask-linear-[270deg,transparent_-8em,black_calc(var(--spacing)*4+1.5%)),black_calc(100%-var(--spacing)*4-1.5%)),transparent_calc(100%+8em)] [&_[data-slot='slider-track']]:!mask-r-from-99% [&_[data-slot='slider-track']]:!h-1  [&_[data-slot='slider-range']]:!bg-primary/80 [&_[data-slot='slider-range']]:!backdrop-blur-3xl [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!p-1 [&_[data-slot='slider-thumb']]:!bg-primary [&_[data-slot='slider-thumb']]:!border-none [&_[data-slot='slider-thumb']]:!opacity-0 [&_[data-slot='slider-thumb']]:group-hover/player:!opacity-100 [&_[data-slot='slider-thumb']]:group-active/player:!opacity-100 [&_[data-slot='slider-thumb']]:group-focus-within/player:!opacity-100 [&_[data-slot='slider-thumb']]:focus-visible:!opacity-100 [&_[data-slot='slider-thumb']]:!transition-opacity [&_[data-slot='slider-thumb']]:!duration-150"
 				value={calcSliderValue(MediaPlayerData.progress, MediaPlayerData.duration)}
 				min={0}
 				max={Math.ceil((MediaPlayerData.duration || 0) * 1000)}
 				step={20}
 				onValueCommit={(value) => {
-					console.log('Progress committed:', value);
+					console.log('Progress confirmed:', value);
 				}}
 			/>
 		</div>
 
+
+
+		<section data-player-controls class="flex items-center gap-0.5">
+			<Button variant="ghost" class="media-button" onclick={() => {}} aria-label="Skip Back">
+				<SkipBack class="size-4" />
+			</Button>
+			<Button variant="ghost" class="media-button" onclick={() => {}} aria-label="Play">
+				<Play class="size-4" />
+				<!-- <Pause class="size-4" /> -->
+			</Button>
+			<Button variant="ghost" class="media-button" onclick={() => {}} aria-label="Skip Forward">
+				<SkipForward class="size-4" />
+			</Button>
+		</section>
     </div>
     
 </section>

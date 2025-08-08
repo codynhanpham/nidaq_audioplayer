@@ -1,1 +1,8 @@
-export { default as StatusBar } from './statusbar.svelte';
+export {
+    type StatusBarDataType,
+    StatusBarData
+} from './statusbarData.svelte';
+
+export { 
+    default as StatusBar 
+} from './statusbar.svelte';

@@ -13,6 +13,12 @@
 			"$lib/*": [
 				"../src/lib/*"
 			],
+			"$src": [
+				"../src"
+			],
+			"$src/*": [
+				"../src/*"
+			],
 			"$app/types": [
 				"./types/index.d.ts"
 			]

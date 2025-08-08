@@ -31,4 +31,4 @@ export const MediaPlayerData: MediaPlayerDataType = $state({
     skipDuration: 5, // Duration to skip forward/backward in seconds
 
     alwaysShowPlayer: true, // Whether to always show the player UI, even when no media is loaded
-} as MediaPlayerDataType);
+});

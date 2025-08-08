@@ -1,0 +1,16 @@
+@import '$src/app.css';
+
+@layer components {
+    .mediaplayer-override {
+        .media-button {
+            @apply !p-2.5 !size-fit [&_svg]:!size-4.5 lg:[&_svg]:!size-5;
+
+            &:hover, &:active, &:focus-visible {
+                @apply !bg-accent/80;
+            }
+        }
+        span {
+            margin-bottom: 1px;
+        }
+    }
+}

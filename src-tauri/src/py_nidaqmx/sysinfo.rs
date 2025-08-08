@@ -78,7 +78,7 @@ pub async fn get_pyenv_sysinfo(app: tauri::AppHandle) -> SysInfo {
         }
     });
 
-    info!("Python environment sysinfo:\n{:?}", sysinfo);
+    // info!("Python environment sysinfo:\n{:?}", sysinfo);
 
     sysinfo
 }
@@ -151,7 +151,7 @@ pub async fn get_nidaq_sysinfo(app: tauri::AppHandle) -> DAQmxInfo {
         eprintln!("Python execution failed: {}", e);
     });
 
-    info!("NI-DAQmx sysinfo:\n{:?}", nidaq_info);
+    // info!("NI-DAQmx sysinfo:\n{:?}", nidaq_info);
 
     nidaq_info
 }

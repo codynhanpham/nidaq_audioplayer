@@ -30,7 +30,7 @@
     import { MediaPlayer, MediaPlayerData } from '$lib/components/media-player';
 
     import { onMount, onDestroy } from 'svelte';
-  import { cn } from '$lib/utils';
+    import { cn } from '$lib/utils';
 
     let { children } = $props();
 
