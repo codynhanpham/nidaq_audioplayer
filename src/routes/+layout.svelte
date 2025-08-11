@@ -65,20 +65,40 @@
 <ModeWatcher />
 
 
-<div class="flex flex-col h-full w-full gap-0 text-wrap break-all text-ellipsis">
-	<TitleBar bind:menubarData />
-	
+<div class="fixed top-0 left-0 w-full h-fit z-[999999] isolate">
+    <TitleBar bind:menubarData />
+</div>
+
+<div class={cn("fixed top-8 left-0 w-full h-full overflow-auto",
+        (MediaPlayerData.audioInfo === null && !MediaPlayerData.alwaysShowPlayer) ? "max-h-[calc(100%-(var(--spacing)*8)-(var(--spacing)*6))]" : // the Title + Status Bar height
+        (MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo.chapters.length > 0) ? 'max-h-[calc(100%-(var(--spacing)*8)-(var(--spacing)*6)-(var(--spacing)*21))] sm:max-h-[calc(100%-(var(--spacing)*8)-(var(--spacing)*6)-(var(--spacing)*16.5))]' : 'max-h-[calc(100%-(var(--spacing)*8)-(var(--spacing)*6)-(var(--spacing)*19))] sm:max-h-[calc(100%-(var(--spacing)*8)-(var(--spacing)*6)-(var(--spacing)*16.5))]',
+        // "max-h-[calc(100%-(var(--spacing)*8)-(var(--spacing)*6))]"
+    )}
+>
     <div class={cn(
-        "mt-8 mb-6 h-full",
-        (MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer) ? "pb-18" : "pb-0"
+        "relative h-full",
+        // (MediaPlayerData.audioInfo === null && !MediaPlayerData.alwaysShowPlayer) ? "mb-6" : // the Status Bar height
+        // (MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo.chapters.length > 0) ? 'mb-21' : 'mb-19 sm:mb-16.5',
     )}>
         {@render children?.()}
     </div>
-
-    {#if MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer}
-
-        <MediaPlayer />
-    {/if}
-
-    <StatusBar />
 </div>
+
+<div class="fixed bottom-6 left-0 w-full h-fit z-[99999] isolate">
+    <div class={cn(
+        (MediaPlayerData.audioInfo === null && !MediaPlayerData.alwaysShowPlayer) ? "h-0" :
+        ((MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo.chapters.length > 0) ? 'h-21' : 'h-19'),
+		'w-full sm:h-17.5',
+        'relative'
+    )}>
+        {#if MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer}
+            <div
+                data-ambient-overlay
+                class="absolute isolate -z-10 bottom-0 left-0 w-full h-[200%] bg-background/10 backdrop-blur-2xl pointer-events-none select-none mask-linear-[180deg,transparent_0%,transparent_calc(50%+(var(--spacing))),black_calc(50%+(var(--spacing)))]"
+            ></div>
+            <MediaPlayer />
+        {/if}
+    </div>
+</div>
+
+<StatusBar />

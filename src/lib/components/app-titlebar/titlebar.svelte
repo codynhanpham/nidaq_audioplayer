@@ -8,10 +8,15 @@
 	import Menubar from './menubar.svelte';
 	import type { MenubarData } from './menubar.svelte';
 
-	import IconMinus from '@lucide/svelte/icons/minus';
-	import Square from '@lucide/svelte/icons/square';
-	import Copy from '@lucide/svelte/icons/copy';
-	import IconX from '@lucide/svelte/icons/x';
+	import { AppNavigator } from '$lib/components/app-navigator';
+
+	import {
+		Copy,
+		Minus as IconMinus,
+		Pin,
+		Square,
+		X as IconX,
+	} from '@lucide/svelte/icons';
 
 	let {
 		menubarData = $bindable<MenubarData>(null),
@@ -22,9 +27,14 @@
 	} = $props();
 
 	let isMaximized = $state(false);
+	let isAlwaysOnTop = $state(false);
 
 	getCurrentWindow().onResized(async () => {
 		isMaximized = await getCurrentWindow().isMaximized();
+	});
+
+	getCurrentWindow().isAlwaysOnTop().then((value) => {
+		isAlwaysOnTop = value;
 	});
 
 	onMount(async () => {
@@ -35,17 +45,48 @@
 <div
 	data-tauri-drag-region
 	class={cn(
-		'bg-accent/30 pointer-events-auto fixed left-0 right-0 top-0 z-[99999] h-fit border-b hover:cursor-grab active:cursor-grabbing',
+		'bg-accent/50 backdrop-blur-3xl pointer-events-auto fixed left-0 right-0 top-0 z-[999999] isolate h-fit border-b hover:cursor-grab active:cursor-grabbing',
 		className,
 		'!max-h-fit'
 	)}
 >
 	<div data-tauri-drag-region class="flex h-fit w-full items-center justify-between gap-8">
-		<div data-tauri-drag-region class="h-fit w-full flex-shrink">
+		<div data-tauri-drag-region class="h-fit w-full max-w-fit">
 			<Menubar bind:data={menubarData} />
 		</div>
 
-		<div data-tauri-drag-region class="flex h-fit min-w-max flex-shrink-0 flex-grow items-center gap-0.5">
+		<div data-tauri-drag-region class="h-fit w-full min-w-fit flex-1 grow">
+			<AppNavigator class="h-7.5 w-fit px-1 py-1.5 bg-accent/20 border border-primary/20 rounded-lg" />
+		</div>
+
+		<div data-tauri-drag-region class="flex h-fit min-w-max items-center gap-0.5">
+			<Button
+				id="titlebar-minimize"
+				variant="ghost"
+				class={cn("size-6.5 text-muted-foreground hover:!bg-accent hover:!text-accent-foreground",
+					isAlwaysOnTop ? 'bg-accent' : ''
+				)}
+				onclick={async () => {
+					if (await getCurrentWindow().isAlwaysOnTop()) {
+						await getCurrentWindow().setAlwaysOnTop(false);
+						isAlwaysOnTop = false;
+					} else {
+						await getCurrentWindow().setAlwaysOnTop(true);
+						isAlwaysOnTop = true;
+					}
+				}}
+				title={isAlwaysOnTop ? 'Unpin from top' : 'Pin to top'}
+			>
+				<!-- <IconMinus aria-label="minimize" class="size-5" strokeWidth="2" /> -->
+				{#if isAlwaysOnTop}
+					<Pin aria-label="unpin" class="size-4 text-foreground" strokeWidth="2" />
+				{:else}
+					<Pin aria-label="pin" class="size-4 text-muted-foreground/80" strokeWidth="2" />
+				{/if}
+			</Button>
+
+			<div class="w-2"></div>
+
 			<Button
 				id="titlebar-minimize"
 				variant="ghost"

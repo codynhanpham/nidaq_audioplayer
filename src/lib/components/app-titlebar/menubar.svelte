@@ -52,7 +52,7 @@
 			class="my-0.5 py-0.5 font-normal text-muted-foreground hover:bg-accent hover:text-foreground"
 			id="app-menubar-file">File</Menubar.Trigger
 		>
-		<Menubar.Content sideOffset={4}>
+		<Menubar.Content sideOffset={4} class="z-[999999] isolate">
 			<Menubar.Item disabled>
 				Open...
 				<Menubar.Shortcut>Ctrl+O</Menubar.Shortcut>
@@ -95,9 +95,9 @@
 	<Menubar.Menu>
 		<Menubar.Trigger
 			class="my-0.5 py-0.5 font-normal text-muted-foreground hover:bg-accent hover:text-foreground"
-			>View</Menubar.Trigger
+			>Edit</Menubar.Trigger
 		>
-		<Menubar.Content sideOffset={4}>
+		<Menubar.Content sideOffset={4} class="z-[999999] isolate">
 			<Menubar.Sub>
 				<Menubar.SubTrigger>Appearance</Menubar.SubTrigger>
 				<Menubar.SubContent class="w-[230px]" side="right" sideOffset={2} align="start">
@@ -107,7 +107,7 @@
 							setMode('dark');
 						}}
 					>
-						Dark
+						Dark Theme
 					</Menubar.CheckboxItem>
 					<Menubar.CheckboxItem
 						checked={mode.current == 'light'}
@@ -115,7 +115,7 @@
 							setMode('light');
 						}}
 					>
-						Light
+						Light Theme
 					</Menubar.CheckboxItem>
 				</Menubar.SubContent>
 			</Menubar.Sub>

@@ -4,6 +4,7 @@ use std::os::windows::process::CommandExt;
 
 use std::net::TcpListener;
 use std::thread::spawn;
+use serde::{Deserialize, Serialize};
 use tungstenite::accept;
 
 
@@ -37,9 +38,8 @@ pub fn start_ws(app: &tauri::AppHandle) -> Result<Child, String> {
     match process {
         Ok(child) => {
             log::info!(
-                "Entrypoint: {}\nPython WebSocket process spawned with PID: {}",
-                entry_point,
-                child.id()
+                "WS Server Entrypoint: {}",
+                entry_point
             );
             Ok(child)
         }
@@ -47,6 +47,32 @@ pub fn start_ws(app: &tauri::AppHandle) -> Result<Child, String> {
     }
 }
 
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PIDData {
+    pid: u32,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct PIDWebSocketResponse {
+    id: Option<String>,
+    timestamp: Option<u64>,
+    lastmsg: Option<String>,
+    status: Option<String>,
+    data: Option<PIDData>,
+    completed: Option<bool>,
+}
+
+// response = {
+//     "id": str(uuid.uuid4()),
+//     "timestamp": int(time.time() * 1000),  # milliseconds
+//     "lastmsg": self.last_message_id,
+//     "status": status,
+//     "data": data,
+//     "completed": completed
+// }
+// pid_data = {
+//     "pid": pid,
+// }
 
 
 /// Make a WS connection to the WebSocket server at `localhost:21749` and send #!pid message
@@ -59,7 +85,11 @@ pub fn get_ws_pid() -> Result<u32, String> {
         Err(e) => return Err(format!("Failed to connect to WebSocket server: {}", e)),
     };
 
-    let pid_message = "#!pid";
+    let pid_message = r#"
+    {
+        "task": "pid"
+    }
+    "#;
     websocket.send(tungstenite::Message::Text(pid_message.to_string().into()))
         .map_err(|e| format!("Failed to send message to WebSocket server: {}", e))?;
 
@@ -67,10 +97,15 @@ pub fn get_ws_pid() -> Result<u32, String> {
         Ok(msg) => msg,
         Err(e) => return Err(format!("Failed to read message from WebSocket server: {}", e)),
     };
-    let pid: u32 = response.to_string()
-        .trim()
-        .parse()
+    // let pid: u32 = response.to_string()
+    //     .trim()
+    //     .parse()
+    //     .map_err(|e| format!("Failed to parse PID from WebSocket response: {}", e))?;
+    // Parse response json
+    let response: PIDWebSocketResponse = serde_json::from_str(&response.to_string())
         .map_err(|e| format!("Failed to parse PID from WebSocket response: {}", e))?;
+
+    let pid = response.data.as_ref().map(|data| data.pid).unwrap_or(0);
 
     // close the WebSocket connection
     if let Err(e) = websocket.close(None) {
