@@ -35,7 +35,7 @@ class MessageHandler:
         self,
         status: str,
         data: Any = None,
-        completed: bool = True
+        completed: bool = True,
     ) -> Dict[str, Any]:
         """Create a standardized response format."""
         response = {

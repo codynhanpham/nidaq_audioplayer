@@ -76,6 +76,18 @@ class AudioBufferManager:
         # Threading for pre-loading
         self._preload_lock = threading.Lock()
     
+    def update_voltage_scale(self, voltage_scale: float) -> None:
+        """
+        Update voltage scale for dynamic adjustment during playback.
+        
+        Args:
+            voltage_scale: New voltage scaling factor
+        """
+        if voltage_scale < 0:
+            raise AudioBufferError("Voltage scale must be non-negative")
+        
+        self.voltage_scale = voltage_scale
+    
     def load_current(self, file_path: str, start_sample: int = 0) -> Dict[str, Any]:
         """
         Load current audio file.
@@ -263,9 +275,6 @@ class AudioBufferManager:
                     # Exact match
                     data = data.T
             
-            # Scale to voltage range
-            data = data * self.voltage_scale
-            
             # Yield chunks starting from start_sample
             total_samples = data.shape[1]
             current_pos = start_sample
@@ -280,6 +289,8 @@ class AudioBufferManager:
                 
                 data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
                 data_frame[:, :chunk_size] = data[:, current_pos:end_pos]
+                
+                data_frame = data_frame * self.voltage_scale
                 
                 yield data_frame
                 current_pos = end_pos

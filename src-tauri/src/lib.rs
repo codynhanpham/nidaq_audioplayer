@@ -6,10 +6,13 @@ use tauri_plugin_window_state::{StateFlags, WindowExt};
 pub mod appstate;
 pub mod py_nidaqmx;
 pub mod utils;
+pub mod audio;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut app = tauri::Builder::default()
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             let _ = app
                 .get_webview_window("main")
@@ -21,6 +24,7 @@ pub fn run() {
         .plugin(
             tauri_plugin_log::Builder::new()
                 .level(log::LevelFilter::Info)
+                .level_for("symphonia_core::probe", log::LevelFilter::Off)
                 .target(tauri_plugin_log::Target::new(
                     tauri_plugin_log::TargetKind::Webview,
                 ))
@@ -87,6 +91,10 @@ pub fn run() {
             py_nidaqmx::sysinfo::get_nidaq_sysinfo,
             py_nidaqmx::sysinfo::get_pyenv_sysinfo,
             py_nidaqmx::pyws::get_ws_pid,
+            audio::glob_filter::filter_audio_files,
+            audio::glob_filter::parse_dirs_from_paths,
+            audio::glob_filter::flex_search_audio_files,
+            audio::metadata::get_media_metadata,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -123,22 +131,30 @@ pub fn run() {
                     }
                 }
                 // Check if the python websocket server is running and close it
-                if let Ok(pid) = py_nidaqmx::pyws::get_ws_pid() {
-                    log::info!("WebSocket server (PID {}) still running, terminating...", pid);
-                    utils::sysproc::kill_pid(pid as u32).unwrap_or_else(|e| {
-                        log::error!("Failed to kill WebSocket server: {}", e);
-                    });
-                }
+                let app_handle = _app_handle.clone();
+                let window_label = label.clone();
+                tauri::async_runtime::spawn(async move {
+                    // Check if the python websocket server is running and close it
+                    if let Ok(pid) = py_nidaqmx::pyws::get_ws_pid().await {
+                        log::info!(
+                            "WebSocket server (PID {}) still running, terminating...",
+                            pid
+                        );
+                        
+                        match utils::sysproc::kill_pid(pid as u32) {
+                            Ok(_) => log::info!("WebSocket server terminated successfully"),
+                            Err(e) => log::error!("Failed to kill WebSocket server: {}", e),
+                        }
+                    }
 
-                _app_handle
-                    .get_webview_window(label)
-                    .unwrap()
-                    .destroy()
-                    .unwrap();
+                    // Close the window after cleanup
+                    if let Some(window) = app_handle.get_webview_window(&window_label) {
+                        let _ = window.destroy();
+                    }
 
-                // End the app
-                // std::process::exit(0);
-                _app_handle.exit(0i32);
+                    // End the app
+                    app_handle.exit(0i32);
+                });
             }
             _ => (),
         }

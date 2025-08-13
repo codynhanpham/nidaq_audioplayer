@@ -12,23 +12,23 @@ nidaq_player: Union[None, Player.NiDaqPlayer] = None
 async def handle_load_audio(websocket, data: Any) -> Dict[str, Any]:
     """Handle load_audio task - loads an audio file for playback."""
     global nidaq_player
-    
+
     try:
         # Validate required fields
         is_valid, error_msg = validate_required_fields(data, ["file_path", "device_name", "ao_channels"])
         if not is_valid:
-            return create_error_response(error_msg)
-        
+            return create_error_response(error_msg, task_name="load_audio")
+
         file_path = data["file_path"]
         if not os.path.exists(file_path):
-            return create_error_response(f"Audio file not found: {file_path}")
-        
+            return create_error_response(f"Audio file not found: {file_path}", task_name="load_audio")
+
         supported_formats = ['.wav', '.mp3', '.flac', '.ogg', '.m4a', '.aiff']
         file_extension = os.path.splitext(file_path)[1].lower()
         
         if file_extension not in supported_formats:
-            return create_error_response(f"Unsupported audio format: {file_extension}. Supported: {supported_formats}")
-        
+            return create_error_response(f"Unsupported audio format: {file_extension}. Supported: {supported_formats}", task_name="load_audio")
+
         # Extract additional parameters
         device_name = data["device_name"]
         ao_channels = data["ao_channels"]
@@ -64,14 +64,14 @@ async def handle_load_audio(websocket, data: Any) -> Dict[str, Any]:
                 "message": "Audio file loaded successfully",
                 "player_info": status,
             }
-            
-            return create_success_response(response_data)
-            
+
+            return create_success_response(response_data, task_name="load_audio")
+
         except Exception as e:
-            return create_error_response(f"Failed to load audio file: {str(e)}")
-            
+            return create_error_response(f"Failed to load audio file: {str(e)}", task_name="load_audio")
+
     except Exception as e:
-        return create_error_response(f"Load audio task failed: {str(e)}")
+        return create_error_response(f"Load audio task failed: {str(e)}", task_name="load_audio")
 
 
 def get_loaded_audio_info() -> Dict[str, Any]:

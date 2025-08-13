@@ -28,12 +28,14 @@ export type AudioChapterInfo = {
 export type AudioInfo = {
     name: string; // Name of the audio file
     artist?: string; // Artist or short description of the audio file
+    contributors?: string; // Additional contributing artist or information
     thumbnail?: string | ImageBase64String; // Path to the thumbnail image or Base64 encoded string
     path: string; // Path to the audio file
     duration: number; // Duration of the audio file in seconds
     size: number; // Size of the audio file in bytes
     sampleRate: number; // Sample rate of the audio file
     channels: number; // Number of audio channels
+    bitDepth: number; // Bit depth of the audio file
 
     chapters?: AudioChapterInfo[];
 }
@@ -42,53 +44,32 @@ export type MediaPlayerDataType = {
     audioInfo: AudioInfo | null; // Information about the currently loaded audio file, null if no media loaded
 
     isPlaying: boolean;
+    playbackCompleted: boolean;
     progress: number | null; // Current playback progress, [0-100], null == no media loaded
     duration: number | null; // Total duration of the media in seconds, same as audioInfo.duration for convenience, or null if not applicable/media not loaded
     volume: number; // Current volume level, [0-100]
     muted: boolean; // Mute state of the media player
     loop: "none" | "all" | "one";
 
+    pauseAutomaticWsProgressUpdate: boolean; // When this is true, progress received from WS messages are not applied to GUI
+
     skipDuration: number; // Duration to skip forward/backward in seconds
 
     alwaysShowPlayer: boolean; // Whether to always show the player UI, even when no media is loaded
 };
 
-const defaultAudioInfo = {
-    name: "Dreamy Night",
-    artist: "comfi beats",
-    thumbnail: undefined,
-    path: "",
-    duration: 0,
-    size: 0,
-    sampleRate: 0,
-    channels: 0,
-
-    chapters: [
-        {
-            timestamp: 0,
-            title: "Introduction",
-        },
-        {
-            timestamp: 40,
-            title: "Verse 1: Left",
-        },
-        {
-            timestamp: 60,
-            title: "really long title just to test if this works",
-        },
-    ]
-}
-
 export const MediaPlayerData: MediaPlayerDataType = $state({
-    // audioInfo: null,
-    audioInfo: defaultAudioInfo || null,
+    audioInfo: null,
 
     isPlaying: false,
+    playbackCompleted: false,
     progress: null,
-    duration: defaultAudioInfo.duration || 100,
+    duration: 420,
     volume: 80,
     muted: false,
     loop: "none",
+
+    pauseAutomaticWsProgressUpdate: false,
 
     skipDuration: 5, // Duration to skip forward/backward in seconds
 

@@ -5,12 +5,18 @@ from websockets.asyncio.server import serve
 from .message_handler import MessageHandler
 from .state import set_ws_start_time
 
+CONNECTIONS = set()
+
 async def handle_message(websocket):
     """Handle incoming WebSocket messages and route to appropriate functions."""
     handler = MessageHandler()
+
+    # Add the new connection to the set
+    CONNECTIONS.add(websocket)
     
     async for message in websocket:
         message = message.strip()
+        print(f"Received message: {message}")
         
         # Handle JSON messages
         try:
@@ -26,6 +32,11 @@ async def handle_message(websocket):
                 "completed": True
             }
             await websocket.send(json.dumps(error_response))
+
+    try:
+        await websocket.wait_closed()
+    finally:
+        CONNECTIONS.remove(websocket)
 
 
 async def main():

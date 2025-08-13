@@ -15,12 +15,14 @@
 		Cpu,
 		ChevronsLeftRightEllipsis,
 		LoaderCircle,
+		RotateCcw,
 		RouteOff,
 	} from '@lucide/svelte/icons';
 
 	import { pyenv_sysinfo, get_nidaq_sysinfo } from "$lib/applications/sysinfo";
-
 	import { type StatusBarDataType, StatusBarData } from ".";
+	import { initWsEventListener, closeWsEventListener, wsEventListenerExists } from '@components/media-player/tasks';
+
 	import { goto } from "$app/navigation";
 
 	let {
@@ -35,19 +37,23 @@
 		StatusBarData.pywsPid = data.pid;
 	});
 
-	get_nidaq_sysinfo().then((data) => {
-		let driver = data.driver;
-		if (driver && driver.startsWith("DAQmx")) {
-			StatusBarData.niDaqDriverVersion = driver.replace("DAQmx", "");
-		} else {
-			StatusBarData.niDaqDriverVersion = driver;
-		}
+	function refreshNiDaqInfo() {
+		get_nidaq_sysinfo().then((data) => {
+			let driver = data.driver;
+			if (driver && driver.startsWith("DAQmx")) {
+				StatusBarData.niDaqDriverVersion = driver.replace("DAQmx", "");
+			} else {
+				StatusBarData.niDaqDriverVersion = driver;
+			}
+	
+			StatusBarData.niDaqDevices = data.devices;
+			if (data.devices && data.devices.length > 0) {
+				StatusBarData.niDaqSelectedDevice = data.devices[0];
+			}
+		});
+	}
+	refreshNiDaqInfo();
 
-		StatusBarData.niDaqDevices = data.devices;
-		if (data.devices && data.devices.length > 0) {
-			StatusBarData.niDaqSelectedDevice = data.devices[0];
-		}
-	});
 
 	let selectedDaqDevice: string | undefined = $derived.by(() => {
 		if (StatusBarData.niDaqSelectedDevice) {
@@ -65,7 +71,6 @@
 		const ws = new WebSocket("ws://localhost:21749");
 
 		ws.onopen = () => {
-			console.log("WebSocket connection established");
 			ws.send(JSON.stringify({ task: "healthcheck" }));
 		};
 
@@ -74,6 +79,14 @@
 			if (result.status === "success") {
 				ws.close();
 				console.log("Healthcheck Status:", result);
+				StatusBarData.pywsConnected = true;
+				if (!wsEventListenerExists()) {
+					initWsEventListener();
+				}
+			}
+			else {
+				StatusBarData.pywsConnected = false;
+				closeWsEventListener();
 			}
 		};
 
@@ -131,15 +144,28 @@
 					<Select.Separator />
 					<Select.SelectGroup>
 						<Select.Label class="py-1 px-1.5">Options</Select.Label>
-						<Button variant="ghost" class="w-full h-fit py-1.5 justify-start rounded-sm px-2.5 font-normal"
-							onclick={() => {
-								deviceSelectorPopupOpened = false;
-								// Go to device config page
-								goto(`##`);
-							}}
-						>
-							<span>Configure...</span>
-						</Button>
+						<div class="flex flex-col gap-0">
+							<Button variant="ghost" class="w-full h-fit py-1.5 justify-start rounded-sm px-2.5 font-normal"
+								onclick={() => {
+									deviceSelectorPopupOpened = false;
+									refreshNiDaqInfo();
+								}}
+							>
+								<div class="w-full flex items-center justify-between gap-4">
+									<span>Refresh Devices List</span>
+									<RotateCcw class="size-3.5 text-muted-foreground" />
+								</div>
+							</Button>
+							<Button variant="ghost" class="w-full h-fit py-1.5 justify-start rounded-sm px-2.5 font-normal"
+								onclick={() => {
+									deviceSelectorPopupOpened = false;
+									// Go to device config page
+									goto(`##`);
+								}}
+							>
+								<span>Configure...</span>
+							</Button>
+						</div>
 					</Select.SelectGroup>
 				</Select.Content>
 			</Select.Root>

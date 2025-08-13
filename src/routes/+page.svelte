@@ -1,5 +1,5 @@
 <script lang="ts">
-import { invoke } from "@tauri-apps/api/core";
+	import { invoke } from "@tauri-apps/api/core";
 
 	import { Button } from '$lib/components/ui/button/index.js'
 

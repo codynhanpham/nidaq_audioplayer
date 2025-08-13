@@ -214,6 +214,26 @@ class NiDaqPlayer:
             
             print(f"Device reconfigured: {self.device_name} with {self.nr_of_channels} channels")
     
+    def update_voltage_scale(self, voltage_scale: float) -> None:
+        """
+        Update voltage scale during playback.
+        
+        Args:
+            voltage_scale: New voltage scale factor (typically 0.0 to 1.0)
+        """
+        with self._state_lock:
+            if voltage_scale < 0:
+                raise NiDaqPlayerError("Voltage scale must be non-negative")
+            
+            old_scale = self.voltage_scale
+            self.voltage_scale = voltage_scale
+            
+            # Update buffer manager if it exists
+            if self._buffer_manager:
+                self._buffer_manager.update_voltage_scale(voltage_scale)
+            
+            print(f"Voltage scale updated from {old_scale:.3f}V to {voltage_scale:.3f}V")
+    
     def load_audio(self, audio_file: str) -> Dict[str, Any]:
         """
         Load audio file and prepare for playback.
@@ -642,9 +662,6 @@ class NiDaqPlayer:
                     # Exact match
                     data = data.T
             
-            # Scale to voltage range
-            data = data * self.voltage_scale
-            
             # Yield chunks of the specified size starting from start_sample
             total_samples = data.shape[1]
             current_pos = start_sample
@@ -660,6 +677,8 @@ class NiDaqPlayer:
                 
                 data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
                 data_frame[:, :chunk_size] = data[:, current_pos:end_pos]
+                
+                data_frame = data_frame * self.voltage_scale
                 
                 yield data_frame
                 current_pos = end_pos

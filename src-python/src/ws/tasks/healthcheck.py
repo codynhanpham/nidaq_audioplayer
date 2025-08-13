@@ -32,7 +32,7 @@ async def handle_healthcheck(websocket, data: Any) -> Dict[str, Any]:
             "uptime": uptime_str
         }
         
-        return create_success_response(health_data)
+        return create_success_response(health_data, task_name="healthcheck")
         
     except ImportError:
         # Fallback if psutil is not available
@@ -42,8 +42,8 @@ async def handle_healthcheck(websocket, data: Any) -> Dict[str, Any]:
             "uptime": uptime_str,
             "message": "Basic health check - psutil not available for detailed metrics"
         }
-        
-        return create_success_response(basic_health)
-        
+
+        return create_success_response(basic_health, task_name="healthcheck")
+
     except Exception as e:
-        return create_error_response(f"Health check failed: {str(e)}")
+        return create_error_response(f"Health check failed: {str(e)}", task_name="healthcheck")

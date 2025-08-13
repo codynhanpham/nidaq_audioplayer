@@ -9,11 +9,16 @@ import time
 from typing import Dict, Any, Optional
 
 
+from websockets.asyncio.server import broadcast
+from . import ws
+
+
 def create_response(
     status: str, 
     data: Any = None, 
     completed: bool = True, 
-    last_msg_id: Optional[str] = None
+    last_msg_id: Optional[str] = None,
+    task_name: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Create a standardized response format for WebSocket messages.
@@ -33,11 +38,12 @@ def create_response(
         "lastmsg": last_msg_id,
         "status": status,
         "data": data,
-        "completed": completed
+        "completed": completed,
+        "task": task_name
     }
 
 
-def create_error_response(error_message: str, last_msg_id: Optional[str] = None) -> Dict[str, Any]:
+def create_error_response(error_message: str, last_msg_id: Optional[str] = None, task_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a standardized error response.
     
@@ -52,11 +58,12 @@ def create_error_response(error_message: str, last_msg_id: Optional[str] = None)
         status="error",
         data={"error": error_message},
         completed=True,
-        last_msg_id=last_msg_id
+        last_msg_id=last_msg_id,
+        task_name=task_name
     )
 
 
-def create_success_response(data: Any = None, last_msg_id: Optional[str] = None) -> Dict[str, Any]:
+def create_success_response(data: Any = None, last_msg_id: Optional[str] = None, task_name: Optional[str] = None) -> Dict[str, Any]:
     """
     Create a standardized success response.
     
@@ -71,7 +78,8 @@ def create_success_response(data: Any = None, last_msg_id: Optional[str] = None)
         status="success",
         data=data,
         completed=True,
-        last_msg_id=last_msg_id
+        last_msg_id=last_msg_id,
+        task_name=task_name
     )
 
 
@@ -153,3 +161,8 @@ def safe_get_nested(data: Dict[str, Any], keys: list[str], default: Any = None) 
         return current
     except (KeyError, TypeError):
         return default
+
+
+async def broadcast_message(message: Dict[str, Any]):
+    """Broadcast a message to all connected WebSocket clients."""
+    await ws.broadcast(ws.CONNECTIONS, message)

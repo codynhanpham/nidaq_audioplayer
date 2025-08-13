@@ -1,23 +1,22 @@
 import json
 import asyncio
 from typing import Dict, Any
-from .load_audio import nidaq_player
-from ..utils import create_success_response, create_error_response
+from . import load_audio
+from ..utils import create_success_response, create_error_response, broadcast_message
 
 
 async def handle_play(websocket, data: Any) -> Dict[str, Any]:
     """Handle play task - starts audio playback with progress updates."""
-    global nidaq_player
     
     try:
-        if nidaq_player is None:
+        if load_audio.nidaq_player is None:
             return create_error_response("No audio player initialized. Load audio first.")
         
-        if not nidaq_player._audio_loaded:
+        if not load_audio.nidaq_player._audio_loaded:
             return create_error_response("No audio file loaded. Load audio first.")
         
         # Start playback
-        nidaq_player.play()
+        load_audio.nidaq_player.play()
         
         # Start progress monitoring task in background
         asyncio.create_task(monitor_playback_progress(websocket))
@@ -25,7 +24,7 @@ async def handle_play(websocket, data: Any) -> Dict[str, Any]:
         # Return initial success response
         response_data = {
             "message": "Playback started",
-            "status": nidaq_player.get_status()
+            "status": load_audio.nidaq_player.get_status()
         }
         
         return create_success_response(response_data)
@@ -36,11 +35,10 @@ async def handle_play(websocket, data: Any) -> Dict[str, Any]:
 
 async def monitor_playback_progress(websocket):
     """Background task to monitor playback progress and send updates."""
-    global nidaq_player
     
     try:
-        while nidaq_player and nidaq_player._playing:
-            status = nidaq_player.get_status()
+        while load_audio.nidaq_player and load_audio.nidaq_player._playing:
+            status = load_audio.nidaq_player.get_status()
             
             # Send progress update
             progress_response = {
@@ -54,7 +52,8 @@ async def monitor_playback_progress(websocket):
                     "playing": status.get('playing', False),
                     "audio_completed": status.get('audio_completed', False),
                     "samples_generated": status.get('samples_generated', 0),
-                    "voltage_scale": getattr(nidaq_player, 'voltage_scale', 0.1)
+                    "voltage_scale": getattr(load_audio.nidaq_player, 'voltage_scale', 0.1),
+                    "raw_status": status
                 },
                 "completed": False
             }
@@ -79,15 +78,36 @@ async def monitor_playback_progress(websocket):
                     "completed": True
                 }
                 
+                load_audio.nidaq_player._clear_tasks()
+                load_audio.nidaq_player._create_tasks()
                 try:
                     await websocket.send(json.dumps(completion_response))
                 except Exception as e:
                     print(f"Failed to send completion notification: {e}")
-                
                 break
-            
-            # Wait before next update (100ms)
-            await asyncio.sleep(0.1)
+
+            await asyncio.sleep(0.075)
+
+        # Check if playback completed
+    # if status.get('audio_completed', False):
+        # Send completion notification
+        completion_response = {
+            "id": "playback_completed",
+            "timestamp": int(asyncio.get_event_loop().time() * 1000),
+            "status": "completed",
+            "data": {
+                "message": "Playback completed",
+                "final_status": load_audio.nidaq_player.get_status()
+            },
+            "completed": True
+        }
+        
+        load_audio.nidaq_player._clear_tasks()
+        load_audio.nidaq_player._create_tasks()
+        try:
+            await websocket.send(json.dumps(completion_response))
+        except Exception as e:
+            print(f"Failed to send completion notification: {e}")
     
     except Exception as e:
         print(f"Error during progress monitoring: {e}")
