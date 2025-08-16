@@ -183,6 +183,13 @@
 
         MediaPlayerData.audioInfo = data;
         MediaPlayerData.duration = data.duration;
+
+        if (MediaPlayerData.isPlaying) {
+            wsSendOnce({
+                task: "pause"
+            });
+        }
+
         wsSendOnce({
             task: "load_audio",
             data: {
@@ -195,9 +202,9 @@
                 samples_per_frame: 4096,
             }
         });
-        // wsSendOnce({
-        //     task: "play"
-        // });
+        wsSendOnce({
+            task: "play"
+        });
     }
     function handleArtistSelect(data: AudioInfo | undefined) {
         if (!data) {

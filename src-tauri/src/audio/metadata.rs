@@ -67,9 +67,6 @@ impl AudioMetadata {
                 Some(StandardTagKey::TrackTitle) => {
                     self.name = tag.value.to_string();
                 }
-                // Some(StandardTagKey::Album) => {
-                //     self.name = tag.value.to_string();
-                // }
                 Some(StandardTagKey::Artist) => {
                     self.artist = Some(tag.value.to_string());
                 }

@@ -83,21 +83,21 @@
     </div>
 </div>
 
-<div class="fixed bottom-6 left-0 w-full h-fit z-[99999] isolate">
-    <div class={cn(
-        (MediaPlayerData.audioInfo === null && !MediaPlayerData.alwaysShowPlayer) ? "h-0" :
-        ((MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo.chapters.length > 0) ? 'h-22' : 'h-20'),
-		'w-full sm:h-17.5',
-        'relative'
-    )}>
-        {#if MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer}
+{#if MediaPlayerData.audioInfo !== null || MediaPlayerData.alwaysShowPlayer}
+    <div class="fixed bottom-6 left-0 w-full h-fit z-[99999] isolate">
+        <div class={cn(
+            (MediaPlayerData.audioInfo === null && !MediaPlayerData.alwaysShowPlayer) ? "h-0" :
+            ((MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo.chapters.length > 0) ? 'h-22' : 'h-20'),
+            'w-full sm:h-17.5',
+            'relative'
+        )}>
             <div
                 data-ambient-overlay
                 class="absolute isolate -z-10 bottom-0 left-0 w-full h-[200%] bg-background/0 backdrop-blur-[54px] pointer-events-none select-none mask-linear-[180deg,transparent_0%,transparent_calc(50%+(var(--spacing))),black_calc(50%+(var(--spacing)))]"
             ></div>
             <MediaPlayer />
-        {/if}
+        </div>
     </div>
-</div>
-
+{/if}
+    
 <StatusBar />

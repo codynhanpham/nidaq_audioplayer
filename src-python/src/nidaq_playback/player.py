@@ -362,8 +362,10 @@ class NiDaqPlayer:
                     self.ai_task.stop()
                 if self.ao_task:
                     self.ao_task.stop()
+                
+                self._reset_digital_outputs(force=True)
+                
                 if self.do_task:
-                    self.do_task.write([False] * len(self.do_channels))
                     self.do_task.stop()
                 
                 self._playing = False
@@ -403,8 +405,10 @@ class NiDaqPlayer:
                     self.ai_task.stop()
                 if self.ao_task:
                     self.ao_task.stop()
+                
+                self._reset_digital_outputs(force=True)
+                
                 if self.do_task:
-                    self.do_task.write([False] * len(self.do_channels))
                     self.do_task.stop()
                 
                 self._playing = False
@@ -609,6 +613,14 @@ class NiDaqPlayer:
     def _clear_tasks(self) -> None:
         """Clear and close all NI-DAQ tasks."""
         try:
+            # Try to reset digital outputs to False before clearing tasks
+            if self.do_task:
+                try:
+                    self.do_task.write([False] * len(self.do_channels))
+                    print("Digital output channels reset to False during cleanup")
+                except Exception as e:
+                    print(f"Warning: Could not reset digital outputs during cleanup: {e}")
+            
             if self.ao_task:
                 try:
                     self.ao_task.stop()
@@ -759,11 +771,9 @@ class NiDaqPlayer:
         """Callback when audio playback is done."""
         print("Audio playback finished.")
         
-        try:
-            if self.do_task:
-                self.do_task.write([False] * len(self.do_channels))
-        except Exception as e:
-            print(f"Error resetting digital output channels: {e}")
+        reset_success = self._reset_digital_outputs(force=True)
+        if not reset_success:
+            print("WARNING: Digital outputs may still be high after done callback!")
         
         self._playing = False
         self._audio_completed = True
@@ -788,13 +798,9 @@ class NiDaqPlayer:
                 if not self._audio_completed:
                     print(f"Audio playback completed: {total_position}/{self._audio_sample_count} samples generated")
                     
-                    # Reset digital output channels to False
-                    try:
-                        if self.do_task:
-                            self.do_task.write([False] * len(self.do_channels))
-                            print("Digital output channels reset to False")
-                    except Exception as e:
-                        print(f"Error resetting digital output channels: {e}")
+                    reset_success = self._reset_digital_outputs(force=True)
+                    if not reset_success:
+                        print("WARNING: Digital outputs may still be high after playback completion!")
                     
                     self._audio_completed = True
                     self._playing = False
@@ -916,6 +922,61 @@ class NiDaqPlayer:
         
         return status
     
+    def _reset_digital_outputs(self, force: bool = False) -> bool:
+        """
+        Safely reset digital output channels to False (LOW).
+        
+        Args:
+            force: If True, try multiple approaches to ensure reset
+            
+        Returns:
+            True if reset was successful
+        """
+        if not self.do_task:
+            return True  # No DO task means nothing to reset
+        
+        reset_success = False
+        
+        # Primary approach: normal write
+        try:
+            self.do_task.write([False] * len(self.do_channels))
+            print("Digital output channels reset to False")
+            reset_success = True
+        except Exception as e:
+            print(f"Primary DO reset failed: {e}")
+        
+        # If force is True and primary failed, try alternative approaches
+        if force and not reset_success:
+            try:
+                # Try stopping and restarting the task
+                self.do_task.stop()
+                time.sleep(0.01)  # Brief delay
+                self.do_task.start()
+                self.do_task.write([False] * len(self.do_channels))
+                print("Digital output channels reset to False (after task restart)")
+                reset_success = True
+            except Exception as e:
+                print(f"Secondary DO reset failed: {e}")
+                
+                # Last resort: recreate the DO task
+                try:
+                    self.do_task.stop()
+                    self.do_task.close()
+                    
+                    # Recreate DO task
+                    self.do_task = ni.Task()
+                    for do_channel in self.do_channels:
+                        self.do_task.do_channels.add_do_chan(
+                            self.device_name + do_channel,
+                            line_grouping=LineGrouping.CHAN_PER_LINE)
+                    self.do_task.write([False] * len(self.do_channels))
+                    print("Digital output channels reset to False (after task recreation)")
+                    reset_success = True
+                except Exception as e2:
+                    print(f"Final DO reset attempt failed: {e2}")
+        
+        return reset_success
+
     def load_and_transition_to_next(self, audio_file: str, use_crossfade: bool = True) -> bool:
         """
         Load next audio and immediately transition to it.

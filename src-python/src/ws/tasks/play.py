@@ -78,6 +78,13 @@ async def monitor_playback_progress(websocket):
                     "completed": True
                 }
                 
+                # Ensure digital outputs are reset before clearing tasks
+                if hasattr(load_audio.nidaq_player, '_reset_digital_outputs'):
+                    try:
+                        load_audio.nidaq_player._reset_digital_outputs(force=True)
+                    except Exception as e:
+                        print(f"Error resetting digital outputs in progress monitor: {e}")
+                
                 load_audio.nidaq_player._clear_tasks()
                 try:
                     await websocket.send(json.dumps(completion_response))
@@ -100,6 +107,13 @@ async def monitor_playback_progress(websocket):
             },
             "completed": True
         }
+        
+        # Ensure digital outputs are reset before clearing tasks
+        if hasattr(load_audio.nidaq_player, '_reset_digital_outputs'):
+            try:
+                load_audio.nidaq_player._reset_digital_outputs(force=True)
+            except Exception as e:
+                print(f"Error resetting digital outputs in final cleanup: {e}")
         
         load_audio.nidaq_player._clear_tasks()
         try:
