@@ -8,6 +8,7 @@
     });
 
 
+    restoreStateCurrent(StateFlags.ALL);
 
 </script>
 
@@ -33,8 +34,6 @@
     import { cn } from '$lib/utils';
 
     let { children } = $props();
-
-    restoreStateCurrent(StateFlags.ALL);
 
     let isDesktop = $state(false);
     let menubarData: MenubarData = $state(null);

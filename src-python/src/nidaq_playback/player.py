@@ -611,6 +611,7 @@ class NiDaqPlayer:
         try:
             if self.ao_task:
                 try:
+                    self.ao_task.stop()
                     self.ao_task.close()
                 except:
                     pass
@@ -618,6 +619,7 @@ class NiDaqPlayer:
             
             if self.ai_task:
                 try:
+                    self.ai_task.stop()
                     self.ai_task.close()
                 except:
                     pass
@@ -625,6 +627,7 @@ class NiDaqPlayer:
             
             if self.do_task:
                 try:
+                    self.do_task.stop()
                     self.do_task.close()
                 except:
                     pass

@@ -1,87 +1,205 @@
-use tauri::utils::mime_type;
 use tauri::Manager;
 
-use audiotags::{Tag, Picture, MimeType};
-use flac::metadata;
-use cue_sheet::parser::{self, Command};
-
+use std::default;
 use std::fmt::Debug;
-use std::{default, hint, time};
 use std::fs::File;
-use std::path::Path;
+use std::path::{self, Path};
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use base64::{engine::general_purpose, Engine as _};
+use bincode::{Encode, Decode};
 
+use bwavfile::WaveReader;
+use cue_sheet::parser;
 
-use symphonia::core::formats::FormatReader;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::probe::Hint;
+use symphonia::core::meta::{StandardTagKey, Tag, Value, Visual};
+use symphonia::core::codecs::CodecType;
 
-struct SimpleMetadata {
-    sample_rate: u32,
-    channels: usize,
-    bit_depth: u32,
-    duration: f64,
+fn picture2base64(mime_type: &str, data: &[u8]) -> String {
+    let data = general_purpose::STANDARD.encode(data);
+    format!("data:{};base64,{}", mime_type, data)
 }
 
-fn extract_basic_metadata(path: &Path) -> Result<SimpleMetadata, Box<dyn std::error::Error>> {
-    let source = Box::new(File::open(path)?);
-    let probe = symphonia::default::get_probe();
-    let stream = MediaSourceStream::new(source, Default::default());
-    let hint = Hint::new();
-
-    let format = probe.format(&hint, stream, &Default::default(), &Default::default())?.format;
-
-    let track = format.default_track().ok_or("No default track found")?;
-    let sample_rate = track.codec_params.sample_rate.ok_or("Sample rate not found")?;
-    let nchannels = track.codec_params.channels.map_or(0, |c| c.count());
-    let bit_depth = track.codec_params.bits_per_sample.ok_or("Bit depth not found")?;
-    let duration = track.codec_params.n_frames.map_or(0.0, |f| f as f64 / sample_rate as f64);
-
-    Ok(SimpleMetadata {
-        sample_rate,
-        channels: nchannels,
-        bit_depth,
-        duration,
-    })
-}
-
-
-
-fn format_mime_type(mime_type: &MimeType) -> String {
-    match mime_type {
-        MimeType::Png => "image/png".to_string(),
-        MimeType::Jpeg => "image/jpeg".to_string(),
-        MimeType::Tiff => "image/tiff".to_string(),
-        MimeType::Bmp => "image/bmp".to_string(),
-        MimeType::Gif => "image/gif".to_string(),
-    }
-}
-
-fn picture2base64(picture: &Picture) -> String {
-    let data = general_purpose::STANDARD.encode(picture.data);
-    format!("data:{};base64,{}", format_mime_type(&picture.mime_type), data)
-}
-
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Encode, Decode)]
 pub struct Chapter {
     pub timestamp: f64, // Start Timestamp in seconds
     pub title: String,
     pub description: Option<String>, // Optional description of the chapter
 }
 
-fn parse_cue_commands(commands: &Vec<Command>) -> Vec<Chapter> {
+
+/// AudioMetadata scheme
+/// 
+/// This also matches with the front-end JS/TS side
+#[derive(Serialize, Deserialize, Debug, Clone, Encode, Decode)]
+pub struct AudioMetadata {
+    pub name: String, // Name of the audio file
+    pub artist: Option<String>, // Primary artist or short description of the audio file
+    pub contributors: Option<Vec<String>>, // Additional contributing artist or information
+    pub thumbnail: Option<String>, // Path to the thumbnail image or Base64 encoded string
+    pub path: String, // Path to the audio file
+    pub duration: f64, // Duration of the audio file in seconds
+    pub size: u64, // Size of the audio file in bytes
+    pub sample_rate: u32, // Sample rate of the audio file
+    pub channels: u32, // Number of audio channels
+    pub bit_depth: u32, // Bit depth of the audio file
+    
+    pub chapters: Option<Vec<Chapter>>, // Optional chapters in the audio file
+
+    // Additional metadata fields - stores unmatched tags as key-value pairs
+    // Need to cast to string for now...
+    pub extras: HashMap<String, String>,
+}
+
+impl AudioMetadata {
+    /// Convert the struct to a generic hashmap for easy serializing/logging
+    pub fn to_hashmap(&self) -> Result<HashMap<String, serde_json::Value>, serde_json::Error> {
+        struct_to_hashmap(self)
+    }
+
+    /// Try to add known tags from the provided list to the metadata
+    /// Unmatched tags will be added into `extras`
+    pub fn try_add_known_tags(&mut self, tags: &[Tag]) {
+        for tag in tags {
+            match tag.std_key {
+                Some(StandardTagKey::TrackTitle) => {
+                    self.name = tag.value.to_string();
+                }
+                // Some(StandardTagKey::Album) => {
+                //     self.name = tag.value.to_string();
+                // }
+                Some(StandardTagKey::Artist) => {
+                    self.artist = Some(tag.value.to_string());
+                }
+                Some(StandardTagKey::AlbumArtist) => {
+                    if let Some(ref mut contributors) = self.contributors {
+                        contributors.push(tag.value.to_string());
+                    } else {
+                        self.contributors = Some(vec![tag.value.to_string()]);
+                    }
+                    self.contributors = self.contributors.as_ref().map(|c| {
+                        c.iter().cloned().collect::<std::collections::HashSet<_>>().into_iter().collect()
+                    });
+                }
+                _ => {
+                    // Add unmatched tags to extras
+                    let key = if let Some(std_key) = &tag.std_key {
+                        format!("{:?}", std_key)
+                    } else {
+                        tag.key.clone()
+                    };
+                    self.extras.insert(key, tag.value.to_string());
+                }
+            }
+
+            if !tag.is_known() {
+                self.extras.insert(tag.key.clone(), tag.value.to_string());
+            }
+
+        }
+    }
+}
+
+impl Default for AudioMetadata {
+    fn default() -> Self {
+        AudioMetadata {
+            name: String::new(),
+            artist: None,
+            contributors: None,
+            thumbnail: None,
+            path: String::new(),
+            duration: 0.0,
+            size: 0,
+            sample_rate: 0,
+            channels: 0,
+            bit_depth: 0,
+
+            chapters: None,
+            
+            extras: HashMap::new(),
+        }
+    }
+}
+
+/// Generic function to convert any serializable struct to HashMap (must have impl `serde::Serialize`)
+pub fn struct_to_hashmap<T: serde::Serialize>(input: &T) -> Result<HashMap<String, serde_json::Value>, serde_json::Error> {
+    let json_value = serde_json::to_value(input)?;
+    if let serde_json::Value::Object(map) = json_value {
+        Ok(map.into_iter().collect())
+    } else {
+        Err(serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Input is not a struct"
+        )))
+    }
+}
+
+
+
+
+
+
+
+/// Symphonia is not great at extracting all cue points from PCM / Wave format, use this function to try with bwavfile
+///
+/// Returns `Some` chapters if found, or `None` if either (1) cannot parse (might not be valid wav format) or (2) no cue points are found
+fn try_extract_wav_chapters(path: &Path) -> Option<Vec<Chapter>> {
+    let mut f = WaveReader::open(path).ok()?;
+    let cue_points = f.cue_points();
+    let format = f.format();
+    let chapters = match cue_points {
+        Ok(cue_points) => {
+            let format = format.unwrap(); // This unwrap should be ok, we already match for cue_points
+            let mut chapters = Vec::new();
+            let cue_points_len = cue_points.len();
+            let width = cue_points_len.to_string().len();
+            for (i, cue) in cue_points.iter().enumerate() {
+                chapters.push(Chapter {
+                    timestamp: cue.frame as f64 / format.sample_rate as f64,
+                    title: cue.label.clone().unwrap_or(format!("Chapter #{:0width$}", i+1, width=width)),
+                    description: cue.note.clone(),
+                });
+            }
+            Some(chapters)
+        }
+        Err(_e) => {
+            // log::warn!("Failed to extract cue points from {:?}: {:?}", path, _e);
+            None
+        }
+    };
+
+    chapters
+}
+
+
+fn cuesheet2chapters(cuesheet: &str) -> Option<Vec<Chapter>> {
+
+    // Just in case some weird cuesheet heading is encountered
+    // only need data starting from FILE to extract cues/markers
+    let track_data = cuesheet.lines()
+        .skip_while(|line| !line.trim().starts_with("FILE"))
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let cuedata = parser::parse_cue(&track_data);
+    if cuedata.is_err() {
+        return None;
+    }
+
+    let commands = cuedata.unwrap();
+
     let mut chapters = Vec::new();
     let mut current_title = String::new();
 
     for command in commands {
         match command {
-            Command::Title(title) => {
+            parser::Command::Title(title) => {
                 current_title = title.clone();
             }
-            Command::Index(index, timestamp) => {
-                if *index == 1 {
+            parser::Command::Index(index, timestamp) => {
+                if index == 1 {
                     let start_sec = timestamp.total_seconds();
                     chapters.push(Chapter {
                         timestamp: start_sec,
@@ -94,176 +212,226 @@ fn parse_cue_commands(commands: &Vec<Command>) -> Vec<Chapter> {
         }
     }
 
-    chapters
-}
-
-fn extract_chapters(path: &Path) -> Option<Vec<Chapter>> {
-    match metadata::get_vorbis_comment(path.to_str()?) {
-        Ok(vorbis_comment) => {
-            let mut cuesheet = vorbis_comment.comments.get("cuesheet");
-            if cuesheet.is_none() {
-                cuesheet = vorbis_comment.comments.get("CUESHEET");
-            }
-            // Add more variations here!
-
-            // Finalize parsing from file
-            if cuesheet.is_none() {
-                return None
-            }
-
-            // Extract cuesheet data
-            // Remove all string before "TRACK" as sometimes REM commands include invalid/unparse-able data
-            let cuesheet = cuesheet.unwrap();
-            let track_data = cuesheet.lines()
-                .skip_while(|line| !line.trim().starts_with("FILE"))
-                .collect::<Vec<_>>()
-                .join("\n");
-
-            let cuedata = parser::parse_cue(&track_data);
-            if cuedata.is_err() {
-                log::warn!("Failed to parse cuesheet: {:?}", cuedata);
-                return None;
-            }
-
-            let chapters = parse_cue_commands(&cuedata.unwrap());
-            Some(chapters)
-        }
-        Err(error) => {
-            log::warn!("Failed to extract vorbis comments from {:?}: {:?}", path, error);
-            None
-        }
+    if chapters.is_empty() {
+        None
+    } else {
+        Some(chapters)
     }
 }
 
 
-/// Extract the first image in file using the flac api
-fn extract_flac_picture(path: &Path) -> Option<String> {
-    let tag = metaflac::Tag::read_from_path(path).ok()?;
-    let picture = tag.pictures().next()?;
-    let data = general_purpose::STANDARD.encode(&picture.data);
-    let mime_type = match picture.mime_type.as_str() {
-        "image/png" => "image/png",
-        "image/jpeg" => "image/jpeg",
-        "image/tiff" => "image/tiff",
-        "image/bmp" => "image/bmp",
-        "image/gif" => "image/gif",
-        _ => "application/octet-stream", // Fallback for unknown types
-    };
-    Some(format!("data:{};base64,{}", mime_type, data))
+fn chapters_from_cues(cues: &[symphonia::core::formats::Cue]) -> Option<Vec<Chapter>> {
+    for cue in cues {
+        let tags = cue.tags.clone();
+        if let Some(chapters) = chapters_from_tags(&tags) {
+            return Some(chapters);
+        }
+        
+        // let cp = cue.points.clone();
+        // https://docs.rs/symphonia-core/latest/symphonia_core/formats/struct.CuePoint.html
+        // Handle parsing the cuepoints here
+        // Though, it is quite rare to see chapter markers embedded here
+    }
+
+    None
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct AudioMetadata {
-    pub name: String, // Name of the audio file
-    pub artist: Option<String>, // Primary artist or short description of the audio file
-    pub contributors: Option<Vec<String>>, // Additional contributing artist or information
-    pub thumbnail: Option<String>, // Path to the thumbnail image or Base64 encoded string
-    pub path: String, // Path to the audio file
-    pub duration: f64, // Duration of the audio file in seconds
-    pub size: u64, // Size of the audio file in bytes
-    pub sample_rate: u32, // Sample rate of the audio file
-    pub channels: u32, // Number of audio channels
-    pub bit_depth: u32, // Bit depth of the audio file
+fn chapters_from_tags(tags: &[Tag]) -> Option<Vec<Chapter>> {
+    let mut chapters = Vec::with_capacity(1);
+    for tag in tags {
+        match tag.value {
+            Value::String(ref s) => {
+                if tag.key.to_lowercase().contains("cuesheet") {
+                    if let Some(cues) = cuesheet2chapters(s) {
+                        chapters.extend(cues);
+                        break; // Only take the first cuesheet found
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    if chapters.is_empty() {
+        None
+    } else {
+        Some(chapters)
+    }
+}
 
-    pub chapters: Option<Vec<Chapter>>, // Optional chapters in the audio file
+
+/// Default thumbnail: files might have cover/folder . jpg/jpeg/png
+///
+/// Use those as the default in case no visuals can be extracted
+fn local_thumbnails(path: &Path) -> Option<String> {
+    let parent = path.parent()?;
+    let mut default_thumbnail = None;
+    
+    let cover_name = vec!["cover", "folder"];
+    let cover_extensions = vec!["jpg", "jpeg", "png"];
+
+    for entry in parent.read_dir().ok()? {
+        let entry = entry.ok()?;
+        let entry = entry.path();
+        let file_stem = entry.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+        let ext = entry.extension().and_then(|e| e.to_str()).unwrap_or("");
+
+        if !cover_extensions.contains(&ext) {
+            continue; // Only check for cover/folder images
+        }
+
+        // Check if the file name matches cover or folder
+        if cover_name.iter().any(|name| file_stem.contains(name)) {
+            let mime_type = match ext {
+                "jpg" | "jpeg" => "image/jpeg",
+                "png" => "image/png",
+                _ => "application/octet-stream",
+            };
+
+            match std::fs::read(entry) {
+                Ok(data) => {
+                    default_thumbnail = Some(format!("data:{};base64,{}", mime_type, general_purpose::STANDARD.encode(data)));
+                    break;
+                }
+                Err(_e) => {}
+            }
+        }
+    }
+
+    default_thumbnail
+}
+
+/// Extract thumbnail from audio file's visuals
+/// 
+/// Fallback to `fallback` (typically `local_thumbnails()` if no visuals are found)
+fn extract_thumbnail(visuals: &[Visual], default: Option<String>) -> Option<String> {
+    if visuals.is_empty() {
+        return default;
+    }
+
+    let mut area: Vec<u64> = vec![];
+    let mut is_square: Vec<bool> = vec![];
+    for (_i, vis) in visuals.iter().enumerate() {
+        if let Some(dimensions) = &vis.dimensions {
+            area.push((dimensions.width * dimensions.height) as u64);
+            is_square.push(dimensions.width == dimensions.height);
+        } else {
+            area.push(0);
+            is_square.push(false);
+        }
+    }
+
+    // First try to find the square with highest resolution. Only if no square found, use the highest res.
+    let mut indices: Vec<usize> = (0..visuals.len()).collect();
+    indices.sort_by(|&a, &b| {
+        // First prioritize square aspect ratio
+        let square_cmp = is_square[b].cmp(&is_square[a]);
+        if square_cmp != std::cmp::Ordering::Equal {
+            return square_cmp;
+        }
+        // If both are square or both are not square, sort by area (descending)
+        area[b].cmp(&area[a])
+    });
+    
+    let idx = indices[0]; // Best index
+
+    let visual = &visuals[idx];
+    let data = &visual.data;
+    if !data.is_empty() {
+        return Some(picture2base64(&visual.media_type, data));
+    }
+    
+    default
+}
+
+
+/// Match any CodecType value from 0x100 upto 0x125 as PCM/Wave
+fn is_pcm_wave(codec: CodecType) -> bool {
+    // Extract the u32 value from CodecType by parsing its hex string representation
+    let codec_str = format!("{}", codec);
+    if let Some(hex_str) = codec_str.strip_prefix("0x") {
+        if let Ok(codec_value) = u32::from_str_radix(hex_str, 16) {
+            return (0x100..=0x125).contains(&codec_value);
+        }
+    }
+    false
+}
+
+
+
+/// Uses Symphonia to parse audio metadata from a file.
+fn parse_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
+    let mut result_metadata = AudioMetadata::default();
+    result_metadata.path = path.to_string_lossy().to_string();
+
+    // Get file size
+    result_metadata.size = std::fs::metadata(path)
+        .map_err(|e| e.to_string())?
+        .len();
+
+    // Stem of path as default name
+    let stem = path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("unknown")
+        .to_string();
+    result_metadata.name = stem;
+
+    let source = Box::new(File::open(path).map_err(|e| e.to_string())?);
+    let probe = symphonia::default::get_probe();
+    let stream = MediaSourceStream::new(source, Default::default());
+    let hint = Hint::new();
+
+    let probed = probe.format(&hint, stream, &Default::default(), &Default::default()).map_err(|e| e.to_string())?;
+    let mut format = probed.format;
+
+    // Find the first audio track with a decodeable codec.
+    let track = format
+        .tracks()
+        .iter()
+        .find(|t| t.codec_params.codec != symphonia::core::codecs::CODEC_TYPE_NULL)
+        .expect("no supported audio tracks");
+    // Though, prioritize the default track
+    let default_track = format.default_track().unwrap_or(track);
+    let default_codec = default_track.codec_params.codec.clone();
+
+    result_metadata.sample_rate = default_track.codec_params.sample_rate.unwrap_or(0);
+    result_metadata.channels = track.codec_params.channels.map_or(0, |c| c.count() as u32);
+    result_metadata.bit_depth = default_track.codec_params.bits_per_sample.unwrap_or(0);
+    result_metadata.duration =  track.codec_params.n_frames.map_or(0.0, |f| f as f64 / result_metadata.sample_rate as f64);
+
+
+    let mut metadata = format.metadata();
+    let metadata = metadata.skip_to_latest();
+    if let Some(rev) = metadata {
+        let tags = rev.tags();
+        result_metadata.thumbnail = extract_thumbnail(rev.visuals(), local_thumbnails(path));
+        result_metadata.chapters = chapters_from_tags(tags);
+        result_metadata.try_add_known_tags(tags);
+    } else {
+        log::warn!("No metadata found in file: {:?}", path);
+    }
+
+
+    // Most of the time, markers and cuesheet are located in metadata tags
+    // In the off chance that they are not found, we can look for cues in the format
+    let cues = format.cues();
+    let chapters_from_cues = chapters_from_cues(cues);
+    if result_metadata.chapters.is_none() && chapters_from_cues.is_some() {
+        result_metadata.chapters = chapters_from_cues;
+    }
+
+    // If we still don't have chapter, and that this file is PCM/Wave based,
+    // try to use bwavfile since Symphonia might not be able to extract chapters from it properly
+    if result_metadata.chapters.is_none() && is_pcm_wave(default_codec) {
+        result_metadata.chapters = try_extract_wav_chapters(path);
+    }
+
+    Ok(Some(result_metadata))
 }
 
 
 #[tauri::command]
 pub async fn get_media_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
-    let path = Path::new(&path);
-    if !path.exists() {
-        return Ok(None);
-    }
-
-    let file_size = path.metadata()
-        .map_err(|e| e.to_string())?
-        .len();
-
-    let clean_file_name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
-    let basic_metadata = extract_basic_metadata(path).unwrap_or(SimpleMetadata {
-        sample_rate: 0,
-        channels: 0,
-        bit_depth: 0,
-        duration: 0.0,
-    });
-
-    let mut metadata = AudioMetadata {
-        name: clean_file_name.clone(),
-        artist: None,
-        contributors: None,
-        thumbnail: None,
-        path: path.to_string_lossy().into_owned(),
-        duration: basic_metadata.duration,
-        size: file_size,
-        sample_rate: basic_metadata.sample_rate,
-        channels: basic_metadata.channels as u32,
-        bit_depth: basic_metadata.bit_depth as u32,
-        chapters: None,
-    };
-
-    // If file is .wav, return as it does not contain metadata
-    if path.extension().map(|s| s == "wav").unwrap_or(false) {
-        // Check the parent folder for cover art
-        if let Some(parent) = path.parent() {
-            let cover_name = vec!["cover", "folder"];
-            let cover_extensions = vec!["jpg", "jpeg", "png"];
-            for name in cover_name {
-                for ext in cover_extensions.clone() {
-                    let cover_path = parent.join(format!("{}.{}", name, ext));
-                    if cover_path.exists() {
-                        let mime_type = match ext {
-                            "jpg" | "jpeg" => "image/jpeg",
-                            "png" => "image/png",
-                            _ => "application/octet-stream",
-                        };
-                        match std::fs::read(cover_path) {
-                            Ok(data) => {
-                                metadata.thumbnail = Some(format!("data:{};base64,{}", mime_type, general_purpose::STANDARD.encode(data)));
-                                break;
-                            }
-                            Err(e) => {
-                                log::warn!("Failed to read cover art file: {:?}", e);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return Ok(Some(metadata));
-    }
-
-    let tag = Tag::new().read_from_path(path)
-        .map_err(|e| e);
-    match tag {
-        Ok(tag) => {
-            // Successfully read the tag
-            metadata.name = tag.title().unwrap_or(&clean_file_name).to_string();
-            metadata.artist = tag.artist().map(|s| s.to_string());
-            metadata.contributors = tag.album_artists()
-                .map(|artists| artists.iter().map(|s| s.to_string()).collect());
-            metadata.thumbnail = tag.album_cover().map(|p| picture2base64(&p));
-            metadata.path = path.to_string_lossy().into_owned();
-            metadata.duration = tag.duration().unwrap_or(0.0);
-            metadata.size = file_size;
-            metadata.sample_rate = basic_metadata.sample_rate;
-            metadata.channels = basic_metadata.channels as u32;
-            metadata.chapters = None;
-            
-            // If media is flac, run extract_chapters
-            if path.extension().map(|s| s == "flac").unwrap_or(false) {
-                metadata.chapters = extract_chapters(&path);
-                if metadata.thumbnail.is_none() {
-                    // If no cover is found, try to read using the flac api
-                    metadata.thumbnail = extract_flac_picture(&path);
-                }
-            }
-
-            Ok(Some(metadata))
-        }
-        Err(e) => Err({
-            log::error!("{:?}", e);
-            format!("{:?}", e)
-        }),
-    }
+    parse_metadata(path)
 }

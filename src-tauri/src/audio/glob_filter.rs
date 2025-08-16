@@ -63,6 +63,7 @@ pub fn parse_dirs_from_paths(paths: Vec<String>) -> Vec<String> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AudioDirStats {
     pub dir: String,
     pub file_count: usize,
@@ -82,18 +83,21 @@ pub async fn flex_search_audio_files(
 ) -> Result<AudioFilesInDir, String> {
     let mut audio_files = std::collections::HashSet::new();
 
-    let dirs = parse_dirs_from_paths(paths);
+    // ensure unique input paths
+    let paths: Vec<String> = std::collections::HashSet::<String>::from_iter(paths).into_iter().collect();
+
+    let dirs = parse_dirs_from_paths(paths.clone());
 
     // Collect audio file statistics
     let mut audio_stats = Vec::new();
     for dir in dirs {
         let path = Path::new(&dir);
         let files = filter_audio_files(&path, recursive_level);
-        let file_count = files.len();
-        audio_stats.push(AudioDirStats {
-            dir: dir,
-            file_count,
-        });
+        let stats = AudioDirStats {
+            dir,
+            file_count: files.len(),
+        };
+        audio_stats.push(stats);
         audio_files.extend(files);
     }
 

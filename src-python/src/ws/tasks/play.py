@@ -79,7 +79,6 @@ async def monitor_playback_progress(websocket):
                 }
                 
                 load_audio.nidaq_player._clear_tasks()
-                load_audio.nidaq_player._create_tasks()
                 try:
                     await websocket.send(json.dumps(completion_response))
                 except Exception as e:
@@ -103,7 +102,6 @@ async def monitor_playback_progress(websocket):
         }
         
         load_audio.nidaq_player._clear_tasks()
-        load_audio.nidaq_player._create_tasks()
         try:
             await websocket.send(json.dumps(completion_response))
         except Exception as e:

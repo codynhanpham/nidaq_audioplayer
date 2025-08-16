@@ -11,8 +11,8 @@ export function getLastStoreUpdated() {
 }
 
 export type LibraryDirInfo = {
-    path: string;
-    audioFileCount: number;
+    dir: string;
+    fileCount: number;
 };
 
 export type Library = {
@@ -29,7 +29,7 @@ export function updateLibraryStore(store: Store, data: Library) {
 export async function listLibraryDirs(store: Store): Promise<string[]> {
     const library = await store.get('library') as Library | undefined;
     if (library) {
-        return library.audioFiles;
+        return library.libraryStats.map((info) => info.dir);
     }
     return [];
 }
@@ -67,4 +67,13 @@ export async function rescanLibrary(store: Store): Promise<Library | undefined> 
         audioFiles: scanResult.paths,
         libraryStats: scanResult.stats
     } : undefined;
+}
+
+
+export async function setLastLibbinHash(store: Store, hash: string): Promise<void> {
+    await store.set('lastLibbinHash', hash);
+    await store.save();
+}
+export async function getLastLibbinHash(store: Store): Promise<string | undefined> {
+    return await store.get('lastLibbinHash');
 }

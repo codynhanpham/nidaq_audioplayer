@@ -4,4 +4,6 @@ export {
     type LibraryDirInfo,
     rescanLibrary,
     getLastStoreUpdated,
+    getLastLibbinHash,
+    setLastLibbinHash
 } from './libraryInfo.svelte'

@@ -10,7 +10,7 @@ pub mod audio;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut app = tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -81,8 +81,8 @@ pub fn run() {
                 }
             }
 
-            let window: WebviewWindow = app.get_webview_window("main").unwrap();
-            window.restore_state(StateFlags::all()).unwrap();
+            // let window: WebviewWindow = app.get_webview_window("main").unwrap();
+            // window.restore_state(StateFlags::all()).unwrap(); // restore state will be handled by the frontend
 
             Ok(())
         })
@@ -95,6 +95,9 @@ pub fn run() {
             audio::glob_filter::parse_dirs_from_paths,
             audio::glob_filter::flex_search_audio_files,
             audio::metadata::get_media_metadata,
+            utils::datastore::save_audio_metadata,
+            utils::datastore::load_audio_metadata,
+            utils::datastore::calculate_audio_metadata_hash,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");

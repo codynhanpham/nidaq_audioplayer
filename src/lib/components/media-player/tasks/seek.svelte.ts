@@ -8,9 +8,9 @@ export function seekAudioHandler(websocket: WebSocket, message: string) {
         return;
     }
 
-    const playerInfo = data.status;
+    const playerInfo = data.data.status;
     MediaPlayerData.isPlaying = playerInfo.playing;
-    MediaPlayerData.progress = playerInfo.sample_generated / playerInfo.total_audio_samples * 100;
+    MediaPlayerData.progress = playerInfo.current_time / playerInfo.duration * 100;
 
     websocket.close();
 }
