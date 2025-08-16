@@ -1,5 +1,4 @@
 use super::super::utils;
-use std::os::windows::process::CommandExt;
 use std::process::{Child, Command};
 
 use serde::{Deserialize, Serialize};
@@ -16,20 +15,23 @@ pub fn start_ws(app: &tauri::AppHandle) -> Result<Child, String> {
         format!("{}/start_ws_server.sh", resource_dir)
     };
 
-    let process = if cfg!(target_os = "windows") {
+    #[cfg(target_os = "windows")]
+    let process = {
+        use std::os::windows::process::CommandExt;
         const CREATE_NO_WINDOW: u32 = 0x08000000;
         Command::new("cmd")
             .arg("/C")
             .arg(&entry_point)
             .creation_flags(CREATE_NO_WINDOW)
             .spawn()
-    } else {
-        Command::new("/bin/sh")
-            .arg("-c")
-            .arg(&entry_point)
-            .arg("&")
-            .spawn()
     };
+
+    #[cfg(not(target_os = "windows"))]
+    let process = Command::new("/bin/sh")
+        .arg("-c")
+        .arg(&entry_point)
+        .arg("&")
+        .spawn();
 
     match process {
         Ok(child) => {
@@ -54,19 +56,8 @@ struct PIDWebSocketResponse {
     completed: Option<bool>,
 }
 
-// response = {
-//     "id": str(uuid.uuid4()),
-//     "timestamp": int(time.time() * 1000),  # milliseconds
-//     "lastmsg": self.last_message_id,
-//     "status": status,
-//     "data": data,
-//     "completed": completed
-// }
-// pid_data = {
-//     "pid": pid,
-// }
 
-/// Make a WS connection to the WebSocket server at `localhost:21749` and send #!pid message
+/// Make a WS connection to the WebSocket server at `localhost:21749` and send pid task
 /// Returns the PID of the WebSocket server process
 #[tauri::command]
 pub async fn get_ws_pid() -> Result<u32, String> {
