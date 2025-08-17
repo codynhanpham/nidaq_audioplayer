@@ -344,10 +344,6 @@
 			<div data-xs-player-timing class="w-full max-h-fit flex sm:hidden text-xs text-muted-foreground items-center justify-between gap-3 px-2.5 pt-2 [&_span]:mb-0">
 				<span class="shrink-0">{formatProgress(MediaPlayerData.progress, MediaPlayerData.duration)}</span>
 				{#if MediaPlayerData.audioInfo?.chapters}
-					<!-- <Button variant="ghost" class="shrink !pt-0.5 !pb-1 !px-2 !h-fit" onclick={() => {}} aria-label="Chapters" title="Chapters">
-						<span class="text-wrap text-xs text-muted-foreground font-bold max-w-full line-clamp-1 text-ellipsis">{getCurrentChapter()?.split('__')[2]}</span>
-					</Button> -->
-
 					<Select.Root type="single" bind:value={currentChapter} disabled={!MediaPlayerData.audioInfo?.chapters || MediaPlayerData.audioInfo.chapters.length === 0}>
 						<Select.Trigger class={"border-none shrink !pt-0.5 !pb-0.5 !px-2.5 !h-fit"} aria-label="Chapters" title="Chapters">
 							<!-- <TableOfContents class={"size-4 text-foreground"} /> -->
@@ -363,7 +359,7 @@
 										>
 											<div class="w-full flex items-center justify-between gap-4 mr-6">
 												<span class="text-xs text-left text-muted-foreground">{formatDuration(chapter.timestamp)}</span>
-												<span class="max-w-[24ch] flex-1 text-left line-clamp-1 text-ellipsis">{chapter.title}</span>
+												<span class="max-w-[24ch] flex-1 text-left line-clamp-1 text-ellipsis" title={chapter.title}>{chapter.title}</span>
 											</div>
 										</Select.Item>
 									{/each}
@@ -408,14 +404,14 @@
 						<div class="[&_div]:!rounded-sm [&_span]:!rounded-sm">
 							{#if MediaPlayerData.audioInfo?.thumbnail}
 								<Avatar.Root class="size-8 sm:size-9">
-									<Avatar.Image class="h-full aspect-square" src={MediaPlayerData.audioInfo.thumbnail} alt="@shadcn" />
+									<Avatar.Image class="h-full aspect-square" src={MediaPlayerData.audioInfo.thumbnail} alt="Album Cover" />
 									<Avatar.Fallback class="h-full aspect-square">
 										<Disc3 class={cn("size-4.5 sm:size-5", MediaPlayerData.isPlaying ? "animate-spin" : "")} />
 									</Avatar.Fallback>
 								</Avatar.Root>
 							{:else}
 								<Avatar.Root class="size-8 sm:size-9">
-									<Avatar.Image class="h-full aspect-square" src="##" alt="@shadcn" />
+									<Avatar.Image class="h-full aspect-square" src="##" alt="Album Cover" />
 									<Avatar.Fallback class="h-full aspect-square">
 										<Disc3 class={cn("size-4.5 sm:size-5", MediaPlayerData.isPlaying ? "animate-spin" : "")} />
 									</Avatar.Fallback>
@@ -446,7 +442,7 @@
 											>
 												<div class="w-full flex items-center justify-between gap-4 mr-6">
 													<span class="text-xs text-left text-muted-foreground">{formatDuration(chapter.timestamp)}</span>
-													<span class="max-w-[24ch] flex-1 text-left line-clamp-1 text-ellipsis">{chapter.title}</span>
+													<span class="max-w-[24ch] flex-1 text-left line-clamp-1 text-ellipsis" title={chapter.title}>{chapter.title}</span>
 												</div>
 											</Select.Item>
 										{/each}

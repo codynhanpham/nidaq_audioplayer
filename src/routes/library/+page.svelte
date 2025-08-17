@@ -22,7 +22,6 @@
             if (metadata && metadata.extras && dropExtras) {
                 delete metadata.extras;
             }
-            console.log(metadata);
             return metadata;
         }
         catch {

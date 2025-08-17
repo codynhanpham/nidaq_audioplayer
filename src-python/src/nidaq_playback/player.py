@@ -656,47 +656,61 @@ class NiDaqPlayer:
     def _create_audio_generator(self, file_path: str, start_sample: int = 0) -> Generator:
         """Create audio data generator starting from specified sample position."""
         try:
-            data, sample_rate = sf.read(file_path, dtype='float64')
-            
-            # Handle different channel configurations
-            if data.ndim == 1:
-                # Mono - duplicate to match the number of output channels
-                data = np.tile(data, (self.nr_of_channels, 1))
-            else:
-                # Multi-channel audio
-                if data.shape[1] > self.nr_of_channels:
-                    # More channels than needed - take first nr_of_channels
-                    data = data[:, :self.nr_of_channels].T
-                elif data.shape[1] < self.nr_of_channels:
-                    # Fewer channels than needed - duplicate to fill
-                    data = data.T
-                    while data.shape[0] < self.nr_of_channels:
-                        data = np.vstack([data, data[-1]])
-                    data = data[:self.nr_of_channels]
-                else:
-                    # Exact match
-                    data = data.T
-            
-            # Yield chunks of the specified size starting from start_sample
-            total_samples = data.shape[1]
-            current_pos = start_sample
+            info = sf.info(file_path)
+            total_samples = info.frames
+            file_channels = info.channels
             
             # Ensure start position is valid
-            if current_pos >= total_samples:
-                print(f"Warning: Start position {current_pos} is beyond audio length {total_samples}")
-                current_pos = total_samples - 1
+            current_pos = max(0, min(start_sample, total_samples - 1))
+            if start_sample >= total_samples:
+                print(f"Warning: Start position {start_sample} is beyond audio length {total_samples}")
             
             while current_pos < total_samples:
-                end_pos = min(current_pos + self.samples_per_frame, total_samples)
-                chunk_size = end_pos - current_pos
+                # Calculate how many samples to read for this chunk
+                # Only load the necessary chunk for speed + memory usage
+                chunk_samples = min(self.samples_per_frame, total_samples - current_pos)
                 
+                chunk_data, sample_rate = sf.read(
+                    file_path, 
+                    start=current_pos, 
+                    frames=chunk_samples,
+                    dtype='float64'
+                )
+                
+                # Handle different channel configurations
+                if chunk_data.ndim == 1:
+                    # Mono - duplicate to match the number of output channels
+                    if file_channels == 1:
+                        # Single channel, tile to match output channels
+                        chunk_data = np.tile(chunk_data, (self.nr_of_channels, 1))
+                    else:
+                        # This shouldn't happen, but handle gracefully
+                        chunk_data = chunk_data.reshape(-1, 1).T
+                        chunk_data = np.tile(chunk_data, (self.nr_of_channels, 1))
+                else:
+                    # Multi-channel audio
+                    if chunk_data.shape[1] > self.nr_of_channels:
+                        # More channels than needed - take first nr_of_channels
+                        chunk_data = chunk_data[:, :self.nr_of_channels].T
+                    elif chunk_data.shape[1] < self.nr_of_channels:
+                        # Fewer channels than needed - duplicate to fill
+                        chunk_data = chunk_data.T
+                        while chunk_data.shape[0] < self.nr_of_channels:
+                            chunk_data = np.vstack([chunk_data, chunk_data[-1]])
+                        chunk_data = chunk_data[:self.nr_of_channels]
+                    else:
+                        # Exact match
+                        chunk_data = chunk_data.T
+                
+                # Create output frame with proper size
                 data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
-                data_frame[:, :chunk_size] = data[:, current_pos:end_pos]
+                data_frame[:, :chunk_samples] = chunk_data
                 
+                # Apply voltage scaling
                 data_frame = data_frame * self.voltage_scale
                 
                 yield data_frame
-                current_pos = end_pos
+                current_pos += chunk_samples
             
             return
             
