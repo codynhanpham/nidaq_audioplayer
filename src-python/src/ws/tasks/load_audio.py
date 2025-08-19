@@ -37,7 +37,7 @@ async def handle_load_audio(websocket, data: Any) -> Dict[str, Any]:
         volume = data.get("volume", 20)
         volume = max(0, min(volume, 100))
         voltage_scale = volume / 100.0
-        samples_per_frame = data.get("samples_per_frame", 4096)
+        samples_per_frame = data.get("samples_per_frame", 8192)
 
         # Init or update nidaq_player with the selected file
         try:

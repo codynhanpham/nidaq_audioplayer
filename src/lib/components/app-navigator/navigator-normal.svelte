@@ -106,8 +106,10 @@
         variant="ghost"
         class={cn("ml-0.5 size-7.5 text-foreground/70 hover:!bg-accent hover:!text-accent-foreground/100 border border-primary/20 rounded-lg",
         )}
-        disabled
         title="Search (Ctrl+K)"
+        onclick={() => {
+            
+        }}
     >
         <Search class="size-4" />
     </Button>

@@ -16,6 +16,9 @@
     async function getMediaInfo(file: string, dropExtras: boolean = true): Promise<AudioInfo | undefined> {
         try {
             const metadata = await invoke("get_media_metadata", { path: file }) as AudioInfo & {extras?: Record<string, any>} | undefined;
+
+            console.log(metadata);
+
             // Should drop extras from metadata most of the time since it will eat up memory
             // (extra metadata like lyrics or additional artwork)
             // Only set dropExtras=false if you really want to list all metadata from the file
@@ -198,7 +201,7 @@
                 ai_channels: ['/ai0', '/ai1'],
                 do_channels: ['/port0/line0', '/port0/line1'],
                 volume: MediaPlayerData.volume,
-                samples_per_frame: 4096,
+                samples_per_frame: 8192,
             }
         });
         wsSendOnce({

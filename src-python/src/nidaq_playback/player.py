@@ -74,8 +74,8 @@ class NiDaqPlayer:
         ai_channels: List[str] = None,
         do_channels: List[str] = None,
         sample_rate: int = 44100,
-        samples_per_frame: int = 8192,
-        frames_per_buffer: int = 10,
+        samples_per_frame: int = 8192, # Buffer chunk per load / to be sent per update. Total buffer size is this * frames_per_buffer
+        frames_per_buffer: int = 16, # Frames of buffers to be prefetched before playback starts, should be at least ~10 or so
         voltage_scale: float = 0.1,
         ai_voltage_range: tuple = (-10, 10),
         ao_voltage_range: tuple = (-10, 10)):
@@ -502,7 +502,8 @@ class NiDaqPlayer:
                 'duration': self._audio_duration,
                 'nr_of_channels': self.nr_of_channels,
                 'pause_position': self._pause_position,
-                'total_audio_samples': self._audio_sample_count
+                'total_audio_samples': self._audio_sample_count,
+                'volume': self.voltage_scale * 100,
             }
             
             # Add playback position if tasks are active

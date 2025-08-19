@@ -20,19 +20,24 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
-cue_sheet = "0.3.0"
 bwavfile = "2.0.1"
+cue_sheet = "0.3.0"
 flate2 = "1.1.2"
+id3 = "1.16.3"
 log = "0.4.27"
+mime = "0.3.17"
+mime_guess = "2.0.5"
 tauri = { version = "2", features = ["devtools"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde_yml = "0.0.12"
 sha2 = "0.10.9"
 pyo3 = { version = "0.25.1", features = ["extension-module", "auto-initialize"] }
 tauri-plugin-log = "2"
 tauri-plugin-websocket = "2"
 tungstenite = "0.27.0"
+reqwest = { version = "0.12.23", features = ["blocking"] }
 symphonia = { version = "0.5.4", features = ["all-formats", "all-codecs"] }
 sysinfo = "0.36.1"
 walkdir = "2.5.0"

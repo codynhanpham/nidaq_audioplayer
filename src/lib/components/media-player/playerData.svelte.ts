@@ -65,7 +65,7 @@ export const MediaPlayerData: MediaPlayerDataType = $state({
     playbackCompleted: false,
     progress: null,
     duration: 420,
-    volume: 80,
+    volume: 50,
     muted: false,
     loop: "none",
 

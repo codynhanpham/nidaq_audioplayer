@@ -24,6 +24,7 @@
 	import { initWsEventListener, closeWsEventListener, wsEventListenerExists } from '@components/media-player/tasks';
 
 	import { goto } from "$app/navigation";
+    import { get } from "svelte/store";
 
 	let {
 		class: className
@@ -47,8 +48,19 @@
 			}
 	
 			StatusBarData.niDaqDevices = data.devices;
+			// Default to the first device
 			if (data.devices && data.devices.length > 0) {
 				StatusBarData.niDaqSelectedDevice = data.devices[0];
+			}
+			
+			// Check local storage for last selected DAQ device and overwrite default if still applicable
+			const storedDevice = localStorage.getItem('selectedDaqDevice');
+			if (storedDevice && StatusBarData.niDaqDevices) {
+				const lastDevice = JSON.parse(storedDevice);
+				const matchingDevice = StatusBarData.niDaqDevices.find(device => device.name === lastDevice.name);
+				if (matchingDevice) {
+					StatusBarData.niDaqSelectedDevice = matchingDevice;
+				}
 			}
 		});
 	}
@@ -120,7 +132,13 @@
 				</span>
 			</div>
 
-			<Select.Root type="single" bind:value={selectedDaqDevice} bind:open={deviceSelectorPopupOpened}>
+			<Select.Root type="single" bind:value={selectedDaqDevice} bind:open={deviceSelectorPopupOpened}
+				onValueChange={() => {
+					(selectedDaqDevice && StatusBarData.niDaqDevices !== null) ? StatusBarData.niDaqSelectedDevice = (StatusBarData.niDaqDevices.find(device => device.name === selectedDaqDevice) || null) : StatusBarData.niDaqSelectedDevice = null;
+
+					localStorage.setItem('selectedDaqDevice', JSON.stringify(StatusBarData.niDaqSelectedDevice));
+				}}
+			>
 				<Select.Trigger class="w-fit text-xs text-muted-foreground gap-1">
 					<Cable class="size-3.5" />
 					<span class="line-clamp-1 text-ellipsis">
@@ -176,7 +194,12 @@
 		</section>
 
 		<section data-statusbar-right class="w-fit h-full flex items-center justify-center gap-1.5">
-			<Button class="px-2 select-none flex items-center justify-center w-fit font-normal text-xs text-muted-foreground gap-1">
+			<Button class="px-2 select-none flex items-center justify-center w-fit font-normal text-xs text-muted-foreground gap-1"
+				onclick={() => {
+					pywsPid = getPywsPid();
+				}}
+				title="Refresh PyWS Status"
+			>
 				<ChevronsLeftRightEllipsis class="size-4" />
 				<span class="text-xs text-muted-foreground line-clamp-1 text-ellipsis flex items-center justify-center gap-1">
 					PyWS PID: 
@@ -193,5 +216,4 @@
 		</section>
 
 	</div>
-    
 </section>

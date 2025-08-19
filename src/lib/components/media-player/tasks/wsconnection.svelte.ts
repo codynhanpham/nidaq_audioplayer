@@ -3,6 +3,7 @@ import { playAudioHandler } from './play.svelte';
 import { pauseAudioHandler } from './pause.svelte';
 import { seekAudioHandler } from './seek.svelte';
 import { volumeAudioHandler } from './volume.svelte';
+import { playerStatusHandler } from './status.svelte';
 
 export function wsSendOnce({ task, data }: { task: string; data?: any }) {
     const ws = new WebSocket("ws://localhost:21749");
@@ -11,6 +12,9 @@ export function wsSendOnce({ task, data }: { task: string; data?: any }) {
     };
     ws.onmessage = (event) => {
         switch (task) {
+            case "status":
+                playerStatusHandler(ws, event.data);
+                break;
             case "load_audio":
                 loadAudioHandler(ws, event.data);
                 break;

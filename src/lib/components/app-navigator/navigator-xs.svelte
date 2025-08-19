@@ -61,8 +61,10 @@
             class={cn("size-7.5 text-foreground/75 hover:!bg-accent hover:!text-accent-foreground/100 focus-visible:!bg-accent focus-visible:!ring-0 focus-visible:!ring-transparent",
                 "border border-border bg-accent/20"
             )}
-            disabled
             title="Search (Ctrl+K)"
+            onclick={() => {
+                
+            }}
         >
             <Search class="size-4" />
         </Button>

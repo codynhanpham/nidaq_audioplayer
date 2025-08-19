@@ -2,6 +2,8 @@ import { MediaPlayerData } from '@components/media-player';
 
 export function loadAudioHandler(websocket: WebSocket, message: string) {
     const data = JSON.parse(message);
+
+    // console.log(data);
     
     if (data.status === "error") {
         console.error("Error occurred while loading audio:", data);
@@ -16,6 +18,7 @@ export function loadAudioHandler(websocket: WebSocket, message: string) {
     }
     MediaPlayerData.isPlaying = playerInfo.playing;
     MediaPlayerData.progress = playerInfo.sample_generated / playerInfo.total_audio_samples * 100;
+    MediaPlayerData.volume = playerInfo.volume;
 
     websocket.close();
 }

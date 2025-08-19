@@ -214,13 +214,23 @@
 		});
 	}
 
-	function syncPlayerVolume() {
+	function setPlayerVolume() {
 		wsSendOnce({
 			task: "volume",
 			data: {
 				volume: MediaPlayerData.volume
 			}
 		});
+	}
+
+	function getPlayerStatus() {
+		wsSendOnce({
+			task: "status"
+		});
+	}
+
+	function syncGUIStatus() {
+		const status = getPlayerStatus();
 	}
 
 	// Spacebar toggles play/pause
@@ -260,6 +270,8 @@
 				}
 			}
 		});
+
+		syncGUIStatus();
 
 		return () => {
 			if (rafId) {
@@ -480,7 +492,7 @@
 								<span class="text-[9px] text-primary/90 font-semibold select-none pointer-events-none mb-2 p-0 w-[4.5ch] text-center">{MediaPlayerData.volume}%</span>
 								<Slider type="single" orientation="vertical" bind:value={MediaPlayerData.volume} min={0} max={100} step={1} thumbPositioning="exact" class="!max-h-38 !min-h-20 [@media(max-height:360px)]:!min-h-16 !min-w-1 [&_[data-slot='slider-track']]:!bg-muted-foreground/70 [&_[data-slot='slider-track']]:!w-1 [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!p-1 [&_[data-slot='slider-thumb']]:!bg-primary"
 								onValueChange={() => { 
-									syncPlayerVolume();
+									setPlayerVolume();
 								}}
 								/>
 							</HoverCard.Content>

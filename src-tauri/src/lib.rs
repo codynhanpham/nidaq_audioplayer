@@ -95,6 +95,7 @@ pub fn run() {
             audio::glob_filter::parse_dirs_from_paths,
             audio::glob_filter::flex_search_audio_files,
             audio::metadata::get_media_metadata,
+            audio::multitrack_gen::parse_playlist,
             utils::datastore::save_audio_metadata,
             utils::datastore::load_audio_metadata,
             utils::datastore::calculate_audio_metadata_hash,

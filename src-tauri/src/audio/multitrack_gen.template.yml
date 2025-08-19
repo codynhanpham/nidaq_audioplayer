@@ -1,0 +1,155 @@
+## METADATA
+# See more standard tags here: https://docs.rs/symphonia-core/0.5.4/symphonia_core/meta/enum.StandardTagKey.html
+
+# Most standard tags are not used in the GUI, though if set in the generator, they will be embedded to the output file regardless
+# All tags are optional, but for best results, the following tags are strongly recommended:
+#   - TrackTitle: (str) The title of the track/output file
+#   - Artist: (str) The primary artists, creators, or performers of the track to be shown in GUI player, separated by semicolons
+#   - Album: (str) The album name for grouping
+#   - AlbumArtist: (str) Additional contributor, separated by semicolons
+#   - TrackNumber: (u32) The track number, for sorting tracks in a multi-track album. Default: 1
+
+# Cover picture can be added by setting a URL, base64 encoded string, or a file path to the `AlbumCover` field
+# Under the hood, this will be mapped to meta::MetadataRevision::visuals (https://docs.rs/symphonia-core/0.5.4/symphonia_core/meta/struct.Visual.html)
+
+
+## Multi-Track GENERATOR FORMATTING
+# To generate a multi-track output file, specify the tracks' paths in order in the `Content` field
+# The generator will fail if any path is invalid or inaccessible
+# For convenience, you can use the `Tracks` field to specify a unique custom alias for each file to be used in place of the track file path in `Content`
+
+# A special token, `pause_<duration>ms` can be used to insert a silence (0.0Hz centered at 0.0) of the specified duration
+# The actual silence duration will be rounded to the nearest sample depending on the overall sampling rate
+# Additionally, use the `pause_[min|max]ms` syntax to generate a random silence duration within the specified range (inclusive)
+# For example, pause_[8000|12000]ms generates a random silence duration between 8 and 12 seconds
+
+# By default, pauses generated this way does not have cue/marker/chapter titles
+# If you want to specify a custom title for certain type of pauses, create a `Pauses` field with the following data:
+#   - Signature: the pause entry string used (eg. pause_5000ms or pause_[1000|1500]ms). All pauses of the same type will share the same title
+#   - Title: Custom Pause Title (for used with chapter markers)
+# If you want to set a one-off title or to overwrite the title set in `Pauses`, specify it after the pause entry string, separated with a pipe "|"
+# For example: pause_5000ms | Introduction
+
+# The common sampling rate of the tracks will be inherited
+# If content files have mixed sampling rates, the highest one will be used, and remaining tracks will be resampled accordingly
+
+# Audio file names (stem) in `Content` will be used as the cue/marker/chapter titles in the final output
+# To customize the title per track, create a `Tracks` field with the following data:
+#   - File: path/to/track
+#   - Title: Custom Track Title (for used with chapter markers)
+#   - Alias: a convenient short alias to be used in place of the track file path in `Content`
+
+# The number of channels in the output file is the highest number of channels among all input tracks
+# By default, specifying a single track per line in `Content` will spread that track data across the available channels:
+#   - If source is mono, the data will be duplicated across all channels.
+#   - If source is stereo, odd channels will contain the left channel data and even channels will contain the right channel data.
+#   - If source is multi-channel, the channels will be interleaved, repeating as necessary until all output channels are filled.
+
+# Instead of specifying a single value per `Content` line, use a nested list to control the channel mapping more explicitly:
+# Content:
+#   - - left.wav
+#     - right.wav
+#   - stereo.wav
+#   - mono.wav
+#   - - mono.wav
+#     - mono.wav
+
+# Each element in the nested list maps to a separate output channel based on their indices
+# Use the special token "_" or simply leave a channel empty to indicate filling that channel with silence until the longest sibling track ends
+# An entry in `Content` (either a file path or explicit channel list) will be discarded if itself or all of its channels are empty (see example)
+# WARNING: If a stereo/multi-channel file is set within a single channel, it will be down-mixed/flatten to mono
+# WARNING: The explicit channel mapping feature is intended for generating multi-channel output from a list of mono tracks. Be careful with channel assignments when using this on stereo or multi-channel sources.
+# To keep the default behavior, do not use nested list for stereo or multi-channel sources.
+
+# In conjunction with the tracks data, the number of channels in the output file will be determined by the highest number of channels among all input tracks or by the explicit channel mapping defined in the `Content` field, which ever is higher
+# The explicit channel mapping under-filled rule applies similarly as stated above, depending on if the track (or the number of specified channels in that line) is 1 (mono), 2 (stereo), or more (multi-channel).
+
+
+
+## EXAMPLE
+
+TrackTitle: Example Audio Track
+Artist: Your Name; Another
+Album: Example Album
+AlbumArtist: Various Artists
+TrackNumber: 1
+
+
+AlbumCover: /path/to/cover.jpg
+
+
+Tracks:
+  - File: /path/to/track1-stereo.wav
+    Title: Track 1 Custom Title
+    Alias: track1
+
+  - File: /path/to/track2-stereo.wav
+    Title: Track 2 Custom Title
+    Alias: track2
+
+  - File: /path/to/mono1.wav
+    Title: Track 3 Custom Title
+    Alias: mono1
+
+  - File: /path/to/mono2.wav
+    Title: Track 4 Custom Title
+    Alias: mono2
+
+
+### DIFFERENT CONTENT FORMATS FOR ILLUSTRATION PURPOSES
+### DO NOT SPECIFY MULTIPLE `CONTENT` SECTIONS
+
+## The following 2 produces the same output:
+# Default mapping
+Content:
+  - track1
+  - mono1
+  - track2
+  - mono2
+  - # Empty entries are discarded
+  - track1
+  - track2
+# Or use explicit channel mapping:
+Content:
+  - track1
+  - - mono1
+    - mono1
+  - track2
+  - - mono2
+    - mono2
+  - - # If all channels of an entry are empty, that entry will be discarded
+    -
+  - track1
+  - track2
+
+
+## Keep track1 and track2 as original stereo sources
+# Merge mono1 and mono2 into stereo tracks
+Content:
+  - track1
+  - - mono1
+    - mono2
+  - track2
+  # Flip left-right here as well!
+  - - mono2
+    - mono1
+  - track1
+  - track2
+  # Only play mono1 on the right (second channel)
+  - - _
+    - mono1
+  # Only play mono2 on the left (first channel)
+  # Notice that leaving the channel empty and tagging it with "_" does the same thing
+  - - mono2
+    -
+  # Only play mono1 on the left (first channel)
+  # Notice how, as long as the entry is a list, child elements are treated as channels based off their indices
+  # The rest of the channels are implied to be silent until mono1 ends
+  - - mono1
+
+  - track2
+
+## Treat track1 and track2 as mono, play track1 on left and track2 on right
+Content:
+  - - track1
+    - track2

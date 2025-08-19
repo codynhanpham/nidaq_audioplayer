@@ -1,3 +1,5 @@
+use id3::TagLike;
+use pyo3::buffer;
 use tauri::Manager;
 
 use std::default;
@@ -356,6 +358,45 @@ fn is_pcm_wave(codec: CodecType) -> bool {
 }
 
 
+/// Sometimes, Symphonia fails to read ID3 tags written to WAV by Mp3Tag
+/// 
+/// In that case, read the ID3 tags using the id3 crate directly.
+fn try_fill_id3_tags(metadata: &mut AudioMetadata, path: &Path) {
+
+    let tag = id3::Tag::read_from_path(path).ok();
+    if tag.is_none() {
+        return; // No ID3 tag found
+    }
+
+    let tag = tag.unwrap();
+
+    let file_stem = path.file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+
+    let title = tag.title().unwrap_or(file_stem);
+
+    if metadata.name.is_empty() || metadata.name == file_stem {
+        metadata.name = title.to_string();
+    }
+    if metadata.artist.is_none() {
+        if let Some(artist) = tag.artist() {
+            metadata.artist = Some(artist.to_string());
+        }
+    }
+    if metadata.contributors.is_none() {
+        if let Some(album_artist) = tag.album_artist() {
+            metadata.contributors = Some(vec![album_artist.to_string()]);
+        }
+    }
+    if metadata.thumbnail.is_none() {
+        if let Some(picture) = tag.pictures().next() {
+            let mime_type = picture.mime_type.as_str();
+            metadata.thumbnail = Some(picture2base64(mime_type, &picture.data));
+        }
+    }
+}
+
 
 /// Uses Symphonia to parse audio metadata from a file.
 fn parse_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
@@ -418,6 +459,9 @@ fn parse_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
         result_metadata.chapters = chapters_from_cues;
     }
 
+    // Just in case Symphonia fails to extract some metadata, try to read the ID3 tags directly
+    try_fill_id3_tags(&mut result_metadata, path);
+
     // If we still don't have chapter, and that this file is PCM/Wave based,
     // try to use bwavfile since Symphonia might not be able to extract chapters from it properly
     if result_metadata.chapters.is_none() && is_pcm_wave(default_codec) {
@@ -432,3 +476,6 @@ fn parse_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
 pub async fn get_media_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
     parse_metadata(path)
 }
+
+
+

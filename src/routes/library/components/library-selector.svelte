@@ -11,14 +11,14 @@
 		invoke("flex_search_audio_files", {
 			paths: paths,
 			recursiveLevel: res,
-		}).then((res: any) => {
+		}).then(async (res: any) => {
 			if (res) {
 				const library = {
 					audioFiles: res.paths,
 					libraryStats: res.stats
 				} as Library;
 				updateLibraryStore(store, library);		
-				refreshAudioMetadata(true);
+				await refreshAudioMetadata(true);
 			}
 		});
 	}
@@ -31,14 +31,14 @@
 		invoke("flex_search_audio_files", {
 			paths: newLibDirs,
 			recursiveLevel: res,
-		}).then((res: any) => {
+		}).then(async (res: any) => {
 			if (res) {
 				const library = {
 					audioFiles: res.paths,
 					libraryStats: res.stats
 				} as Library;
 				updateLibraryStore(store, library);		
-				refreshAudioMetadata(true);
+				await refreshAudioMetadata(true);
 			}
 		});
 	}
