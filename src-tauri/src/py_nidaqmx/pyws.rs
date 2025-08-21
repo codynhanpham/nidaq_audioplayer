@@ -56,7 +56,6 @@ struct PIDWebSocketResponse {
     completed: Option<bool>,
 }
 
-
 /// Make a WS connection to the WebSocket server at `localhost:21749` and send pid task
 /// Returns the PID of the WebSocket server process
 #[tauri::command]

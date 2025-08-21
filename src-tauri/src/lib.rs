@@ -4,13 +4,14 @@ use tauri::{Manager, RunEvent, WebviewWindow};
 use tauri_plugin_window_state::{StateFlags, WindowExt};
 
 pub mod appstate;
+pub mod audio;
 pub mod py_nidaqmx;
 pub mod utils;
-pub mod audio;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -95,7 +96,7 @@ pub fn run() {
             audio::glob_filter::parse_dirs_from_paths,
             audio::glob_filter::flex_search_audio_files,
             audio::metadata::get_media_metadata,
-            audio::multitrack_gen::parse_playlist,
+            audio::multitrack_gen::audio_from_playlist,
             utils::datastore::save_audio_metadata,
             utils::datastore::load_audio_metadata,
             utils::datastore::calculate_audio_metadata_hash,
@@ -144,7 +145,7 @@ pub fn run() {
                             "WebSocket server (PID {}) still running, terminating...",
                             pid
                         );
-                        
+
                         match utils::sysproc::kill_pid(pid as u32) {
                             Ok(_) => log::info!("WebSocket server terminated successfully"),
                             Err(e) => log::error!("Failed to kill WebSocket server: {}", e),

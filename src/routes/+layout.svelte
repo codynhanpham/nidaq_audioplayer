@@ -22,15 +22,18 @@
 		StateFlags
 	} from '@tauri-apps/plugin-window-state';
     
+	import { register, isRegistered, unregisterAll, type ShortcutEvent } from '@tauri-apps/plugin-global-shortcut';
+
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 
     import { TitleBar } from '$lib/components/app-titlebar';
 	import type { MenubarData } from '$lib/components/app-titlebar/menubar.svelte';
 
     import { StatusBar } from '$lib/components/app-statusbar';
-    import { MediaPlayer, MediaPlayerData } from '$lib/components/media-player';
+    import { MediaPlayer, MediaPlayerData, tryPlay } from '$lib/components/media-player';
 
     import { onMount, onDestroy } from 'svelte';
+    import { onNavigate } from '$app/navigation';
     import { cn } from '$lib/utils';
 
     let { children } = $props();
@@ -38,11 +41,37 @@
     let isDesktop = $state(false);
     let menubarData: MenubarData = $state(null);
 
+    
+    async function registerCtrlF23() {
+        function handleF23(event: ShortcutEvent) {
+            if (event.state === 'Pressed') {
+                tryPlay();
+            }
+        }
+
+        if (!(await isRegistered('CmdOrControl+F23'))) {
+            await register('CmdOrControl+F23', (event) => {
+                handleF23(event);
+            });
+        }
+    }
+
+    onNavigate(() => {
+        unregisterAll().then(() => {
+            // When navigating to a new page, try re-register the F23 shortcut just to keep the callback fresh (probably some tauri bug?)
+            registerCtrlF23();
+        });
+    });
+    
+
     onMount(() => {
         // @ts-ignore
 		if (typeof window.__TAURI__ !== 'undefined') {
 			isDesktop = true;
 		}
+
+        registerCtrlF23();
+
 
         // After the app is loaded, show the app window
 		getCurrentWindow().show();
@@ -55,8 +84,9 @@
 		});
     });
 
-    onDestroy(() => {
-        saveWindowState(StateFlags.ALL);
+    onDestroy(async () => {
+        await saveWindowState(StateFlags.ALL);
+        await unregisterAll();
     });
 
 </script>

@@ -3,4 +3,8 @@
   "python-envs.defaultEnvManager": "ms-python.python:conda",
   "python-envs.defaultPackageManager": "ms-python.python:conda",
   "python-envs.pythonProjects": [],
+  "rust-analyzer.linkedProjects": [
+    "global_triggers/Cargo.toml",
+    "src-tauri/Cargo.toml"
+  ]
 }

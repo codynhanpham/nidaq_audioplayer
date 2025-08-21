@@ -22,29 +22,34 @@ base64 = "0.22.1"
 bincode = { version = "2.0.1", features = ["serde"] }
 bwavfile = "2.0.1"
 cue_sheet = "0.3.0"
+dasp = "0.11.0"
+flac-codec = { version = "1.1.0", features = ["rayon"] }
 flate2 = "1.1.2"
 id3 = "1.16.3"
 log = "0.4.27"
 mime = "0.3.17"
 mime_guess = "2.0.5"
-tauri = { version = "2", features = ["devtools"] }
-tauri-plugin-opener = "2"
+rand = "0.9.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yml = "0.0.12"
 sha2 = "0.10.9"
 pyo3 = { version = "0.25.1", features = ["extension-module", "auto-initialize"] }
+tauri = { version = "2", features = ["devtools"] }
+tauri-plugin-opener = "2"
 tauri-plugin-log = "2"
 tauri-plugin-websocket = "2"
 tungstenite = "0.27.0"
 reqwest = { version = "0.12.23", features = ["blocking"] }
 symphonia = { version = "0.5.4", features = ["all-formats", "all-codecs"] }
+symphonium = { version = "0.6.1", features = ["all"] }
 sysinfo = "0.36.1"
 walkdir = "2.5.0"
 tauri-plugin-dialog = "2"
 tauri-plugin-store = "2"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-global-shortcut = "2"
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 
@@ -57,3 +62,4 @@ opt-level = 3
 
 [profile.release]
 codegen-units = 1
+lto = true

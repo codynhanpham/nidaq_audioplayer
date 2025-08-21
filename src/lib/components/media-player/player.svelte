@@ -2,6 +2,31 @@
     export type MediaPlayerProps = {
         class?: string;
     };
+
+	export async function tryPlay() {
+		console.log("Try Play")
+		// Check if there is a media source available
+		if (!(MediaPlayerData && MediaPlayerData.audioInfo)) {
+			console.warn("No media source available to play.");
+			return;
+		}
+
+		if (MediaPlayerData.isPlaying) {
+			return;
+		}
+
+		if (MediaPlayerData.playbackCompleted) {
+			wsSendOnce({
+				task: "seek",
+				data: {
+					time: 0
+				}
+			});
+		}
+		wsSendOnce({
+			task: "play"
+		})
+	}
 </script>
 
 
@@ -190,17 +215,19 @@
 				task: "pause"
 			})
 		} else {
-			if (MediaPlayerData.playbackCompleted) {
-				wsSendOnce({
-					task: "seek",
-					data: {
-						time: 0
-					}
-				});
-			}
-			wsSendOnce({
-				task: "play"
-			})
+			// if (MediaPlayerData.playbackCompleted) {
+			// 	wsSendOnce({
+			// 		task: "seek",
+			// 		data: {
+			// 			time: 0
+			// 		}
+			// 	});
+			// }
+			// wsSendOnce({
+			// 	task: "play"
+			// })
+
+			tryPlay();
 		}
 	}
 

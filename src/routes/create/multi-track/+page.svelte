@@ -23,6 +23,7 @@
 
 
     let windowScaleFactor = $state(1);
+	let currentObjectUrl: string | null = null;
         
     function elementContainsPoint(element: HTMLElement, point: PhysicalPosition) {
 		const logicalPoints = point.toLogical(windowScaleFactor);
@@ -64,8 +65,37 @@
 		}
 
 		let pathsToSearch = event.paths[0];
-        const playlist = await invoke("parse_playlist", { path: pathsToSearch });
-        console.log(playlist);
+		console.log("Making audio from playlist...");
+        const audioBuffer = await invoke("audio_from_playlist", { path: pathsToSearch }) as ArrayBuffer;
+        console.log("Finished. Audio buffer length: ", audioBuffer.byteLength);
+
+		// audioBuffer is the ArrayBuffer you got from invoke(...)
+		const blob = new Blob([audioBuffer], { type: "audio/flac" });
+		const url = URL.createObjectURL(blob);
+		const audioElement = document.getElementById("audio-player") as HTMLAudioElement;
+		audioElement.src = url;
+
+		// Keep the object URL to allow downloading after playback ends.
+		// Revoke any previous URL we created.
+		if (currentObjectUrl) {
+			try { URL.revokeObjectURL(currentObjectUrl); } catch (e) { /* ignore */ }
+		}
+		currentObjectUrl = url;
+
+		// Wire up and show the download link
+		const downloadLink = document.getElementById("audio-download") as HTMLAnchorElement | null;
+		if (downloadLink) {
+			downloadLink.href = url;
+			// Suggest a filename based on the dropped path
+			const suggestedName = pathsToSearch.split(/[/\\]/).pop() || 'audio.flac';
+			// Ensure extension
+			if (!/\.flac$/i.test(suggestedName)) {
+				downloadLink.download = suggestedName + '.flac';
+			} else {
+				downloadLink.download = suggestedName;
+			}
+			downloadLink.classList.remove('hidden');
+		}
 	}
 
 	function handleResetDragDrop(
@@ -105,8 +135,19 @@
 			})();
 		}
 
+
 		return () => {
-		dragDropEventUnlistener?.();
+			dragDropEventUnlistener?.();
+			// revoke object URL if we created one to free memory
+			if (currentObjectUrl) {
+				try { URL.revokeObjectURL(currentObjectUrl); } catch (e) { /* ignore */ }
+				currentObjectUrl = null;
+				const downloadLink = document.getElementById("audio-download") as HTMLAnchorElement | null;
+				if (downloadLink) {
+					downloadLink.href = '';
+					downloadLink.classList.add('hidden');
+				}
+			}
 		};
 	});
 </script>
@@ -118,6 +159,14 @@
     >
         <h2 class="text-lg text-center font-semibold mb-2">Drop your .yml file here</h2>
     </div>
+
+	<audio id="audio-player" controls>
+		<source id="audio-source" src="" type="audio/flac">
+		Your browser does not support the audio element.
+	</audio>
+
+	<!-- download link will be populated by JS when a file is dropped -->
+	<a id="audio-download" class="hidden mt-2 text-sm text-sky-700 underline" href="##" download>Download audio</a>
 </main>
 
 <style lang="postcss">

@@ -1,6 +1,7 @@
 export {
     default as MediaPlayer,
     type MediaPlayerProps,
+    tryPlay,
 } from "./player.svelte";
 
 export {

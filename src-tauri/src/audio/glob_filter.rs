@@ -84,7 +84,9 @@ pub async fn flex_search_audio_files(
     let mut audio_files = std::collections::HashSet::new();
 
     // ensure unique input paths
-    let paths: Vec<String> = std::collections::HashSet::<String>::from_iter(paths).into_iter().collect();
+    let paths: Vec<String> = std::collections::HashSet::<String>::from_iter(paths)
+        .into_iter()
+        .collect();
 
     let dirs = parse_dirs_from_paths(paths.clone());
 

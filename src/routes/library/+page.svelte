@@ -17,7 +17,7 @@
         try {
             const metadata = await invoke("get_media_metadata", { path: file }) as AudioInfo & {extras?: Record<string, any>} | undefined;
 
-            console.log(metadata);
+            // console.log(metadata);
 
             // Should drop extras from metadata most of the time since it will eat up memory
             // (extra metadata like lyrics or additional artwork)

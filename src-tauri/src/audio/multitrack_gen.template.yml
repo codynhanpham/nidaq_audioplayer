@@ -13,10 +13,12 @@
 # Under the hood, this will be mapped to meta::MetadataRevision::visuals (https://docs.rs/symphonia-core/0.5.4/symphonia_core/meta/struct.Visual.html)
 
 
+
 ## Multi-Track GENERATOR FORMATTING
 # To generate a multi-track output file, specify the tracks' paths in order in the `Content` field
 # The generator will fail if any path is invalid or inaccessible
 # For convenience, you can use the `Tracks` field to specify a unique custom alias for each file to be used in place of the track file path in `Content`
+
 
 # A special token, `pause_<duration>ms` can be used to insert a silence (0.0Hz centered at 0.0) of the specified duration
 # The actual silence duration will be rounded to the nearest sample depending on the overall sampling rate
@@ -30,8 +32,12 @@
 # If you want to set a one-off title or to overwrite the title set in `Pauses`, specify it after the pause entry string, separated with a pipe "|"
 # For example: pause_5000ms | Introduction
 
+# To make random pauses, as well as other randomized elements in a playlist reproducible, set a `RandSeed` field in the file. Seed value is treated as string and truncate to a maximum of 32 bytes 
+
+
 # The common sampling rate of the tracks will be inherited
 # If content files have mixed sampling rates, the highest one will be used, and remaining tracks will be resampled accordingly
+
 
 # Audio file names (stem) in `Content` will be used as the cue/marker/chapter titles in the final output
 # To customize the title per track, create a `Tracks` field with the following data:
@@ -96,6 +102,8 @@ Tracks:
     Alias: mono2
 
 
+RandSeed: hello world # Set a seed so that all random operations are reproducible
+
 ### DIFFERENT CONTENT FORMATS FOR ILLUSTRATION PURPOSES
 ### DO NOT SPECIFY MULTIPLE `CONTENT` SECTIONS
 
@@ -107,7 +115,9 @@ Content:
   - track2
   - mono2
   - # Empty entries are discarded
+  - pause_5000ms # To add silence, use `pause_<duration>ms`
   - track1
+  - pause_[1000|2000]ms # Use the [<min>|<max>] syntax to specify a range of random durations
   - track2
 # Or use explicit channel mapping:
 Content:
@@ -119,7 +129,9 @@ Content:
     - mono2
   - - # If all channels of an entry are empty, that entry will be discarded
     -
+  - pause_5000ms
   - track1
+  - pause_[1000|2000]ms
   - track2
 
 

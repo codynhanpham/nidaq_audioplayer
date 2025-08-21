@@ -1,11 +1,10 @@
 use std::path::Path;
 
-use reqwest::blocking::Client;
 use mime::Mime;
+use reqwest::blocking::Client;
 
 use base64::{engine::general_purpose, Engine as _};
-use symphonia::core::meta::{StandardTagKey, Visual, Tag, Value};
-
+use symphonia::core::meta::{StandardTagKey, Tag, Value};
 
 /// Given a string matching some StandardTagKey, return the corresponding StandardTagKey if it exists.
 pub fn metatagstr2stdtagkey(tagkey: &str) -> Option<StandardTagKey> {
@@ -125,10 +124,14 @@ pub fn metatagstr2stdtagkey(tagkey: &str) -> Option<StandardTagKey> {
     }
 }
 
-
 /// Check whether the string is a Base64 encoded string with "data:{};base64,{}" pattern
 fn is_base64_encoded(s: &str) -> bool {
-    s.starts_with("data:") && s.contains(";base64,") && s.split(";base64,").nth(1).map(|data| data.len() > 0).unwrap_or(false)
+    s.starts_with("data:")
+        && s.contains(";base64,")
+        && s.split(";base64,")
+            .nth(1)
+            .map(|data| data.len() > 0)
+            .unwrap_or(false)
 }
 
 /// Decode the given Base64 encoded media. Return the MIME type and Boxed data
@@ -143,7 +146,6 @@ fn decode_base64_media(encoded: &str) -> Result<(Mime, Box<[u8]>), Box<dyn std::
     }
     Err("Invalid Base64 data".into())
 }
-
 
 fn get_image_mime_type(path: &str) -> Result<Option<Mime>, Box<dyn std::error::Error>> {
     if is_base64_encoded(path) {
@@ -200,18 +202,18 @@ fn get_image_data(path: &str) -> Result<Option<Box<[u8]>>, Box<dyn std::error::E
     Ok(None)
 }
 
-
 /// Given a key and some value, try and parse it into a Visual if the key matches
-pub fn parse_visual(tagkey: &str, tagvalue: &str) -> Option<Visual> {
+pub fn parse_visual(tagkey: &str, tagvalue: &str) -> Option<symphonia::core::meta::Visual> {
     match tagkey {
         "AlbumCover" => {
-            let mime_type = get_image_mime_type(&tagvalue.to_string()).ok()?;
-            let image_data = get_image_data(&tagvalue.to_string()).ok()?;
+            let mime_type: Option<Mime> = get_image_mime_type(&tagvalue.to_string()).ok()?;
+            let image_data: Option<Box<[u8]>> = get_image_data(&tagvalue.to_string()).ok()?;
 
             if mime_type.is_none() || image_data.is_none() {
                 return None;
             }
-            return Some(Visual {
+
+            return Some(symphonia::core::meta::Visual {
                 data: image_data.unwrap_or_else(|| Box::new([])),
                 media_type: mime_type.unwrap().essence_str().to_string(),
                 dimensions: None,
@@ -222,5 +224,21 @@ pub fn parse_visual(tagkey: &str, tagvalue: &str) -> Option<Visual> {
             });
         }
         _ => None,
+    }
+}
+
+/// Convert between symphonia Visual and flac-codec Picture
+pub fn visual_to_flac_picture(
+    visual: &symphonia::core::meta::Visual,
+) -> flac_codec::metadata::Picture {
+    flac_codec::metadata::Picture {
+        picture_type: flac_codec::metadata::PictureType::FrontCover,
+        media_type: visual.media_type.to_owned(),
+        description: String::new(),
+        width: 0,
+        height: 0,
+        color_depth: 0,
+        colors_used: None,
+        data: visual.data.to_vec(),
     }
 }
