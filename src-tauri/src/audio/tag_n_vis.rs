@@ -4,7 +4,7 @@ use mime::Mime;
 use reqwest::blocking::Client;
 
 use base64::{engine::general_purpose, Engine as _};
-use symphonia::core::meta::{StandardTagKey, Tag, Value};
+use symphonia::core::meta::StandardTagKey;
 
 /// Given a string matching some StandardTagKey, return the corresponding StandardTagKey if it exists.
 pub fn metatagstr2stdtagkey(tagkey: &str) -> Option<StandardTagKey> {

@@ -1,13 +1,7 @@
-use flac_codec::metadata::contiguous::Contiguous;
-use flac_codec::metadata::cuesheet::TrackNonCDDA;
-use flac_codec::metadata::fields::{ARTIST, TITLE};
-use flac_codec::metadata::{self, Picture, VorbisComment};
-use std::fs::File;
-use std::io::{Cursor, Seek};
+use flac_codec::metadata::{Picture, VorbisComment};
+use std::io::Cursor;
 use std::path::Path;
-use symphonia::core::meta::{StandardTagKey, Value, Visual};
-use symphonia::core::probe::Hint;
-use symphonia::core::{audio::AudioBufferRef, io::MediaSourceStream};
+use symphonia::core::meta::Visual;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;

@@ -1,15 +1,13 @@
 use id3::TagLike;
-use pyo3::buffer;
 use tauri::Manager;
 
 use base64::{engine::general_purpose, Engine as _};
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::default;
 use std::fmt::Debug;
 use std::fs::File;
-use std::path::{self, Path};
+use std::path::Path;
 
 use bwavfile::WaveReader;
 use cue_sheet::parser;

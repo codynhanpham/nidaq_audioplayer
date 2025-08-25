@@ -1,7 +1,6 @@
 use std::{env, sync::Mutex};
 
-use tauri::{Manager, RunEvent, WebviewWindow};
-use tauri_plugin_window_state::{StateFlags, WindowExt};
+use tauri::{Manager, RunEvent};
 
 pub mod appstate;
 pub mod audio;

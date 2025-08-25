@@ -1,4 +1,3 @@
-use log::{info, trace, warn};
 use pyo3::ffi::c_str;
 use pyo3::prelude::*;
 use pyo3::types::IntoPyDict;

@@ -82,6 +82,6 @@ pub fn create_pause(
         signature: signature.clone(),
         title,
         sample_rate,
-        data: vec![0.0; (sample_rate * duration / 1000) as usize],
+        data: vec![0.0; (sample_rate as u128 * duration as u128 / 1000) as usize],
     }
 }

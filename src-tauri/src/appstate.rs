@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-use tauri::{Builder, Manager};
 
 #[derive(Default)]
 pub struct AppData {

@@ -1,22 +1,15 @@
-use dasp::sample;
-use flac_codec::metadata::cuesheet;
-use rand::rand_core::le;
 use tauri::ipc::Response;
 
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{rngs::StdRng, SeedableRng};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::thread::panicking;
 
 use super::pauses;
 use super::tag_n_vis;
 use super::tracks;
 use serde::{Deserialize, Serialize};
 
-use flac_codec::{
-    decode::FlacChannelReader,
-    encode::{generate_seektable, FlacChannelWriter, Options, SeekTableInterval},
-};
+use flac_codec::encode::{FlacChannelWriter, Options};
 use std::io::{Cursor, Seek};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash, Eq, PartialEq)]
