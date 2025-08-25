@@ -4,7 +4,6 @@
     };
 
 	export async function tryPlay() {
-		console.log("Try Play")
 		// Check if there is a media source available
 		if (!(MediaPlayerData && MediaPlayerData.audioInfo)) {
 			console.warn("No media source available to play.");
@@ -459,8 +458,8 @@
 						</div>
 
 						<div class="max-w-full flex flex-col items-center justify-center gap-0">
-							<span class="mb-0 text-left text-sm text sm:text-base max-w-full text-ellipsis line-clamp-1" title={MediaPlayerData.audioInfo?.name || ""}>{MediaPlayerData.audioInfo?.name || ""}</span>
-							<span class="text-xs sm:text-sm text-center text-muted-foreground max-w-full text-ellipsis line-clamp-1" title={MediaPlayerData.audioInfo?.artist || ""}>{MediaPlayerData.audioInfo?.artist || ""}</span>
+							<span class="mb-0 text-left text-sm text sm:text-base max-w-full break-all text-ellipsis line-clamp-1" title={MediaPlayerData.audioInfo?.name || ""}>{MediaPlayerData.audioInfo?.name || ""}</span>
+							<span class="text-xs sm:text-sm text-center text-muted-foreground max-w-full break-all text-ellipsis line-clamp-1" title={MediaPlayerData.audioInfo?.artist || ""}>{MediaPlayerData.audioInfo?.artist || ""}</span>
 						</div>
 					{/if}
 				</section>

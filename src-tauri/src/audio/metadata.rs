@@ -10,7 +10,7 @@ use std::fs::File;
 use std::path::Path;
 
 use bwavfile::WaveReader;
-use cue_sheet::parser;
+use cue_sheet::parser::{self, Token};
 
 use symphonia::core::codecs::CodecType;
 use symphonia::core::io::MediaSourceStream;
@@ -22,11 +22,18 @@ fn picture2base64(mime_type: &str, data: &[u8]) -> String {
     format!("data:{};base64,{}", mime_type, data)
 }
 
+/// Represents a chapter in an audio file
+/// 
+/// This also matches with the front-end JS/TS side
+///
+/// Note that `timestamp` might not be exact: most of the time, it is extracted via CUESHEET, which only provides a frame-based timestamp (1/75 second resolution).
+/// If `startsample` is available, use it together with the track sample rate to calculate the exact timestamp downstream.
 #[derive(Serialize, Deserialize, Debug, Clone, Encode, Decode)]
 pub struct Chapter {
-    pub timestamp: f64, // Start Timestamp in seconds
+    pub timestamp: f64, // Start Timestamp in seconds, either exact (via sample stamps) or approximate (via CUE frame = 1/75 per second resolution) if `startsample` is not available
     pub title: String,
     pub description: Option<String>, // Optional description of the chapter
+    pub startsample: Option<u64>, // Start sample of the chapter, exact
 }
 
 /// AudioMetadata scheme
@@ -159,6 +166,7 @@ fn try_extract_wav_chapters(path: &Path) -> Option<Vec<Chapter>> {
                         width = width
                     )),
                     description: cue.note.clone(),
+                    startsample: Some(cue.frame as u64),
                 });
             }
             Some(chapters)
@@ -201,10 +209,32 @@ fn cuesheet2chapters(cuesheet: &str) -> Option<Vec<Chapter>> {
                 if index == 1 {
                     let start_sec = timestamp.total_seconds();
                     chapters.push(Chapter {
-                        timestamp: start_sec,
+                        timestamp: start_sec, // NOTE that this is non-exact, only to 1/75 second resolution
                         title: current_title.clone(),
                         description: None,
+                        startsample: None, // CUE index does not provide exact sample info
                     });
+                }
+            }
+            parser::Command::Rem(key, value) => {
+                if key.to_uppercase() == "STARTSAMPLE" {
+                    match value {
+                        Token::Number(num) => {
+                            let startsample = num as u64;
+                            if let Some(last_chapter) = chapters.last_mut() {
+                                last_chapter.startsample = Some(startsample);
+                            }
+                        }
+                        Token::String(ref s) => {
+                            let startsample = s.parse::<u64>().ok();
+                            if let Some(last_chapter) = chapters.last_mut() {
+                                if let Some(startsample) = startsample {
+                                    last_chapter.startsample = Some(startsample);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
                 }
             }
             _ => {}
@@ -391,7 +421,14 @@ fn try_fill_id3_tags(metadata: &mut AudioMetadata, path: &Path) {
     }
 }
 
-/// Uses Symphonia to parse audio metadata from a file.
+
+/// Parse essential metadata from audio files.
+///
+/// This function first tries to extract metadata using Symphonia, and if that fails,
+/// it falls back to reading ID3 tags directly.
+/// 
+/// Chapters are first stamped according to available CUESHEET data (75 frames per second resolution).
+/// If `REM STARTSAMPLE <value>` comments exist in the CUESHEET, they are parsed and used to refine the chapters' start timestamps.
 pub fn parse_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
     let mut result_metadata = AudioMetadata::default();
     result_metadata.path = path.to_string_lossy().to_string();
@@ -461,6 +498,17 @@ pub fn parse_metadata(path: &Path) -> Result<Option<AudioMetadata>, String> {
     // try to use bwavfile since Symphonia might not be able to extract chapters from it properly
     if result_metadata.chapters.is_none() && is_pcm_wave(default_codec) {
         result_metadata.chapters = try_extract_wav_chapters(path);
+    }
+
+    // Lastly, go through chapters and check for 'startsample' to calculate exact timestamps
+    if let Some(chapters) = &result_metadata.chapters {
+        if chapters.iter().any(|c| c.startsample.is_some()) && result_metadata.sample_rate > 0 {
+            for chapter in result_metadata.chapters.as_mut().unwrap().iter_mut() {
+                if let Some(startsample) = chapter.startsample {
+                    chapter.timestamp = std::cmp::max(startsample-1, 0) as f64 / result_metadata.sample_rate as f64;
+                }
+            }
+        }
     }
 
     Ok(Some(result_metadata))

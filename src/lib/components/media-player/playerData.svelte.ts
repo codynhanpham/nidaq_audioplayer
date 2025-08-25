@@ -23,6 +23,7 @@ export type AudioChapterInfo = {
     timestamp: number; // Timestamp of the chapter in seconds
     title: string; // Title of the chapter
     description?: string; // Extra information about the chapter
+    startsample?: number; // The start sample of the chapter, relative to the start of the audio file
 }
 
 export type AudioInfo = {
