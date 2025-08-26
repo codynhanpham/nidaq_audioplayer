@@ -66,7 +66,21 @@ fn main() {
             match &command {
                 Commands::Metadata { input, output } => {
                     let metadata = nidaq_audioplayer_lib::audio::metadata::parse_metadata(&PathBuf::from(input));
-                    println!("{}", serde_json::to_string_pretty(&metadata).unwrap());
+                    if metadata.is_err() {
+                        eprintln!("Error parsing metadata: {}", metadata.err().unwrap());
+                        std::process::exit(1);
+                    }
+                    let metadata = metadata.unwrap();
+                    if let Some(output) = output {
+                        if output == "-" {
+                            println!("{}", serde_json::to_string_pretty(&metadata).unwrap());
+                        }
+                        else {
+                            std::fs::write(output, serde_json::to_string_pretty(&metadata).unwrap()).unwrap();
+                        }
+                    } else {
+                        println!("{}", serde_json::to_string_pretty(&metadata).unwrap());
+                    }
                 }
             }
 
