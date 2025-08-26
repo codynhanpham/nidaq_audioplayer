@@ -38,6 +38,8 @@ pub fn run() {
 
             // Help the OS find the Python interpreter and packages, especially when user does not have Python installed globally
             // Well, and in some case, this also helps pyo3 to use the VENV created by src-python installer (though, not too consistent)
+            // Also, for now, don't do this on Linux
+            #[cfg(target_os = "windows")]
             if let Ok(dir) = python_resource_dir {
                 app.manage(Mutex::new(appstate::AppData {
                     python_resource_dir: dir.clone(),

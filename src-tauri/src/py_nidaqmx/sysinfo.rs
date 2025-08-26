@@ -128,7 +128,6 @@ pub async fn get_nidaq_sysinfo(app: tauri::AppHandle) -> DAQmxInfo {
 
     use pyo3::ffi::c_str;
     use pyo3::prelude::*;
-    use pyo3::types::IntoPyDict;
 
     Python::with_gil(|py| -> PyResult<()> {
         let sys = py.import("sys")?;
