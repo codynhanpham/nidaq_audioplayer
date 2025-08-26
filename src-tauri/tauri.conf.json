@@ -47,8 +47,7 @@
     ],
     "resources": {
       "../src-python/*": "src-python",
-      "../src-python/src/": "src-python/src",
-      "../global_triggers/target/release/global_triggers.exe": "bin/global_triggers.exe"
+      "../src-python/src/": "src-python/src"
     }
   }
 }

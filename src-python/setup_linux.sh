@@ -98,7 +98,7 @@ if [ "$conda_exists" == "F" ]; then
     
     # Test the conda binary
     echo "Miniconda version:"
-    "$CONDA_ROOT_PREFIX/bin/conda" --version
+    "$CONDA_ROOT_PREFIX/bin/python3" "$CONDA_ROOT_PREFIX/bin/conda" --version
     
     if [ $? -ne 0 ]; then
         echo "Miniconda not found."
@@ -112,7 +112,7 @@ fi
 # Create the installer env
 if [ ! -d "$INSTALL_ENV_DIR" ]; then
     echo "Creating conda environment with Python 3.12"
-    CI=true "$CONDA_ROOT_PREFIX/bin/conda" create --no-shortcuts -y -k --prefix "$INSTALL_ENV_DIR" python=3.12
+    CI=true "$CONDA_ROOT_PREFIX/bin/python3" "$CONDA_ROOT_PREFIX/bin/conda" create --no-shortcuts -y -k --prefix "$INSTALL_ENV_DIR" python=3.12
     
     if [ $? -ne 0 ]; then
         echo "Conda environment creation failed."

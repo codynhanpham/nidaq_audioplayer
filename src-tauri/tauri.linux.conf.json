@@ -1,0 +1,8 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "resources": {
+      "../global_triggers/target/release/global_triggers": "bin/global_triggers"
+    }
+  }
+}

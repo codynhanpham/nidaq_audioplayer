@@ -1,6 +1,3 @@
-use pyo3::ffi::c_str;
-use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
 use serde::{Deserialize, Serialize};
 
 use super::super::utils;
@@ -24,6 +21,14 @@ impl Default for SysInfo {
 }
 
 #[tauri::command]
+#[cfg(not(target_os = "windows"))]
+pub async fn get_pyenv_sysinfo(app: tauri::AppHandle) -> SysInfo {
+    let mut sysinfo = SysInfo::default();
+    sysinfo
+}
+
+#[tauri::command]
+#[cfg(target_os = "windows")]
 pub async fn get_pyenv_sysinfo(app: tauri::AppHandle) -> SysInfo {
     let mut sysinfo = SysInfo::default();
 
@@ -32,6 +37,10 @@ pub async fn get_pyenv_sysinfo(app: tauri::AppHandle) -> SysInfo {
     if let Ok(path) = resource_dir {
         sysinfo.src_dir = Some(path);
     }
+
+    use pyo3::ffi::c_str;
+    use pyo3::prelude::*;
+    use pyo3::types::IntoPyDict;
 
     Python::with_gil(|py| {
         // Try to get Python version
@@ -104,10 +113,22 @@ impl Default for DAQmxInfo {
 }
 
 #[tauri::command]
+#[cfg(not(target_os = "windows"))]
+pub async fn get_nidaq_sysinfo(app: tauri::AppHandle) -> DAQmxInfo {
+    let mut nidaq_info = DAQmxInfo::default();
+    nidaq_info
+}
+
+#[tauri::command]
+#[cfg(target_os = "windows")]
 pub async fn get_nidaq_sysinfo(app: tauri::AppHandle) -> DAQmxInfo {
     let mut nidaq_info = DAQmxInfo::default();
 
     let resource_dir = utils::taurithing::resource_path(&app, "src-python");
+
+    use pyo3::ffi::c_str;
+    use pyo3::prelude::*;
+    use pyo3::types::IntoPyDict;
 
     Python::with_gil(|py| -> PyResult<()> {
         let sys = py.import("sys")?;
