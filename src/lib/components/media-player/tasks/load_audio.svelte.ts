@@ -19,6 +19,7 @@ export function loadAudioHandler(websocket: WebSocket, message: string) {
     MediaPlayerData.isPlaying = playerInfo.playing;
     MediaPlayerData.progress = playerInfo.sample_generated / playerInfo.total_audio_samples * 100;
     MediaPlayerData.volume = playerInfo.volume;
+    MediaPlayerData.flipLRStereo = playerInfo.flip_lr_stereo || false;
 
     websocket.close();
 }

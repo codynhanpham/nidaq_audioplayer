@@ -38,6 +38,7 @@ async def handle_load_audio(websocket, data: Any) -> Dict[str, Any]:
         volume = max(0, min(volume, 100))
         voltage_scale = volume / 100.0
         samples_per_frame = data.get("samples_per_frame", 8192)
+        flip_lr_stereo = data.get("flip_lr_stereo", False)
 
         # Init or update nidaq_player with the selected file
         try:
@@ -56,6 +57,9 @@ async def handle_load_audio(websocket, data: Any) -> Dict[str, Any]:
 
             # Load the audio file
             nidaq_player.load_audio(file_path)
+            
+            # Set the flip L/R stereo configuration
+            nidaq_player.set_flip_lr_stereo(flip_lr_stereo)
 
             status = nidaq_player.get_status()
 

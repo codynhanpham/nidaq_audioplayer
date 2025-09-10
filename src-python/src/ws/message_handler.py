@@ -11,6 +11,7 @@ from .tasks.pause import handle_pause, handle_resume
 from .tasks.status import handle_status
 from .tasks.set_voltage_scale import handle_volume
 from .tasks.seek import handle_seek
+from .tasks.flip_lr_stereo import handle_flip_lr_stereo
 
 
 class MessageHandler:
@@ -28,6 +29,7 @@ class MessageHandler:
             "status": handle_status,
             "volume": handle_volume,
             "seek": handle_seek,
+            "flip_lr_stereo": handle_flip_lr_stereo,
         }
         self.last_message_id: Optional[str] = None
     

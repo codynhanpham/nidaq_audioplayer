@@ -7,6 +7,10 @@ A modern media player focusing on audio playback through unconventional backends
 - [ ] Traditional audio interfaces (ASIO, WASAPI, etc.)
 - [ ] COM devices (ESP32, microcontrollers, etc.)
 
+## Extras
+- `metadata_extractor` - A simple standalone CLI tool to extract metadata from audio files. Or simply use the subcommand `metadata` from the main `nidaq_audioplayer` executable. Either output to stdout (for piping) or save to a JSON file.
+
+
 ## Why?
 
 The project started due to the lack of cheap and/or versatile hardware support for audio playback at high sampling rates. The maximum frequency any audio system can produce is roughly half the minimum sampling rate across *all* links in the chain: the source audio file, the processing hardware, the digital-to-analog conversion, the preamplifier, the speakers, etc. From these, digital-to-analog conversion (DAC) is often the limiting factor. Most consumer audio interfaces are capped at 192,000 Hz sampling rate at 24 bit-per-sample: an extremely reasonable if not high quality for their target audience - human listeners whose hearing range is typically maxed out at around 20,000 Hz.

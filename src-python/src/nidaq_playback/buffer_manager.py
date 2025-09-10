@@ -34,7 +34,8 @@ class AudioBufferManager:
                 samples_per_frame: int = 8192,
                 nr_of_channels: int = 2,
                 voltage_scale: float = 0.1,
-                crossfade_samples: int = 4096):
+                crossfade_samples: int = 4096,
+                flip_lr_stereo: bool = False):
         """
         Initialize buffer manager.
         
@@ -43,11 +44,13 @@ class AudioBufferManager:
             nr_of_channels: Number of output channels
             voltage_scale: Voltage scaling factor
             crossfade_samples: Number of samples for crossfade transitions
+            flip_lr_stereo: Whether to flip left/right channels for stereo audio
         """
         self.samples_per_frame = samples_per_frame
         self.nr_of_channels = nr_of_channels
         self.voltage_scale = voltage_scale
         self.crossfade_samples = crossfade_samples
+        self.flip_lr_stereo = flip_lr_stereo
         
         # Current and next generators
         self._current_generator: Optional[Generator] = None
@@ -87,6 +90,15 @@ class AudioBufferManager:
             raise AudioBufferError("Voltage scale must be non-negative")
         
         self.voltage_scale = voltage_scale
+    
+    def set_flip_lr_stereo(self, flip_lr_stereo: bool) -> None:
+        """
+        Update flip L/R stereo setting for dynamic adjustment during playback.
+        
+        Args:
+            flip_lr_stereo: Whether to flip left/right channels for stereo audio
+        """
+        self.flip_lr_stereo = flip_lr_stereo
     
     def load_current(self, file_path: str, start_sample: int = 0) -> Dict[str, Any]:
         """
@@ -301,6 +313,11 @@ class AudioBufferManager:
                 # Create output frame with proper size
                 data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
                 data_frame[:, :chunk_samples] = chunk_data
+                
+                # Apply L/R stereo channel flipping if enabled and file has exactly 2 channels
+                if self.flip_lr_stereo and file_channels == 2 and self.nr_of_channels >= 2:
+                    # Swap channels 0 and 1 (left and right)
+                    data_frame[[0, 1]] = data_frame[[1, 0]]
                 
                 # Apply voltage scaling
                 data_frame = data_frame * self.voltage_scale

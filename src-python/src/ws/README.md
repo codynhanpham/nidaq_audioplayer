@@ -79,12 +79,24 @@ A JSON-based WebSocket server for controlling audio playback with standardized r
 **Task:** `load_audio`
 **Data Required:**
 - `file_path`: Path to audio file
+- `device_name`: NI-DAQ device name
+- `ao_channels`: List of analog output channels
+
+**Data Optional:**
+- `ai_channels`: List of analog input channels
+- `do_channels`: List of digital output channels
+- `volume`: Volume level 0-100 (default: 20)
+- `samples_per_frame`: Samples per frame (default: 8192)
+- `flip_lr_stereo`: Whether to flip left/right stereo channels (default: false)
 
 ```json
 {
   "task": "load_audio",
   "data": {
-    "file_path": "/path/to/audio.wav"
+    "file_path": "/path/to/audio.wav",
+    "device_name": "Dev1",
+    "ao_channels": ["/ao0", "/ao1"],
+    "flip_lr_stereo": false
   }
 }
 ```
@@ -171,6 +183,22 @@ A JSON-based WebSocket server for controlling audio playback with standardized r
 }
 ```
 
+### 12. Flip Left/Right Stereo Channels
+**Task:** `flip_lr_stereo`
+**Data Optional:**
+- `flip_lr_stereo`: Boolean to enable/disable L/R channel flipping (if omitted, returns current setting)
+
+**Description:** Toggles left/right stereo channel flipping. Only applies to audio files with exactly 2 channels.
+
+```json
+{
+  "task": "flip_lr_stereo",
+  "data": {
+    "flip_lr_stereo": true
+  }
+}
+```
+
 ## Usage Examples
 
 ### Python Client
@@ -194,7 +222,7 @@ async def send_command(task, data=None):
 health = await send_command("healthcheck")
 status = await send_command("status")
 load_result = await send_command("load_audio", {"file_path": "music.wav"})
-play_result = await send_command("play", {"volume": 0.8})
+play_result = await send_command("play")
 ```
 
 ### JavaScript Client
@@ -216,79 +244,7 @@ ws.onmessage = (event) => {
 // Examples
 sendCommand('healthcheck');
 sendCommand('load_audio', { file_path: 'music.wav' });
-sendCommand('play', { volume: 0.8, loop: true });
-```
-
-## File Structure
-
-```
-src/ws/
-├── __init__.py
-├── ws.py                 # Main WebSocket server
-├── message_handler.py    # JSON message routing
-├── utils.py             # Shared utility functions
-├── config.py            # Configuration settings
-├── client_example.py     # Test client example
-├── README.md            # This file
-└── tasks/               # Individual task handlers
-    ├── __init__.py
-    ├── healthcheck.py   # Health check task
-    ├── pid.py          # Process ID task
-    ├── terminate.py    # Server termination task
-    ├── load_audio.py   # Audio loading task
-    ├── play.py         # Audio playback task
-    ├── pause.py        # Pause/resume tasks
-    ├── seek.py         # Seeking and position tasks
-    └── status.py       # Status and volume tasks
-```
-
-## Code Architecture
-
-The WebSocket server uses a modular architecture with shared utilities to avoid code duplication:
-
-### Core Components
-
-- **`utils.py`** - Shared utility functions including:
-  - `create_response()` - Standardized response formatting
-  - `create_success_response()` - Success response helper
-  - `create_error_response()` - Error response helper
-  - `validate_numeric_range()` - Numeric validation
-  - `validate_required_fields()` - Field validation
-  - `safe_get_nested()` - Safe dictionary access
-
-- **`message_handler.py`** - Routes incoming JSON messages to appropriate task handlers
-
-- **`tasks/`** - Individual task modules that import utilities for consistent responses
-
-## Starting the Server
-
-```python
-from src.ws.ws import start_websocket_server
-start_websocket_server()
-```
-
-The server will start on `ws://localhost:21749` and support both legacy text commands and new JSON messages.
-
-## Legacy Support
-
-The server still supports legacy text commands for backward compatibility:
-- `#!pid` - Returns process ID (plain text)
-- `#!terminate` - Terminates server
-
-## Integration Notes
-
-This implementation provides the framework for audio control. To integrate with actual audio playback:
-
-1. Install audio libraries (e.g., `pygame`, `pydub`, `soundfile`)
-2. Replace placeholder audio operations in task files
-3. Implement actual audio loading, playback, and control logic
-4. Add error handling for audio-specific exceptions
-
-## Testing
-
-Run the test client:
-```bash
-python src/ws/client_example.py
+sendCommand('play');
 ```
 
 Make sure the WebSocket server is running first.

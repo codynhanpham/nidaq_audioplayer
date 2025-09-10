@@ -155,6 +155,7 @@ class NiDaqPlayer:
         self._gapless_enabled = False
         self._crossfade_enabled = False
         self._crossfade_samples = 4096
+        self._flip_lr_stereo = False  # Configuration for flipping L/R stereo channels
         
         # Threading
         self._state_lock = threading.RLock()
@@ -167,7 +168,8 @@ class NiDaqPlayer:
             samples_per_frame=self.samples_per_frame,
             nr_of_channels=self.nr_of_channels,
             voltage_scale=self.voltage_scale,
-            crossfade_samples=self._crossfade_samples
+            crossfade_samples=self._crossfade_samples,
+            flip_lr_stereo=self._flip_lr_stereo
         )
         
         self._initialized = True
@@ -233,6 +235,33 @@ class NiDaqPlayer:
                 self._buffer_manager.update_voltage_scale(voltage_scale)
             
             print(f"Voltage scale updated from {old_scale:.3f}V to {voltage_scale:.3f}V")
+    
+    def set_flip_lr_stereo(self, flip_lr_stereo: bool) -> None:
+        """
+        Set the flip left/right stereo channels configuration.
+        Only applies to audio files with exactly 2 channels.
+        
+        Args:
+            flip_lr_stereo: Whether to flip L/R stereo channels
+        """
+        with self._state_lock:
+            old_setting = self._flip_lr_stereo
+            self._flip_lr_stereo = flip_lr_stereo
+            
+            # Update buffer manager if it exists
+            if self._buffer_manager:
+                self._buffer_manager.set_flip_lr_stereo(flip_lr_stereo)
+            
+            print(f"Flip L/R stereo setting updated from {old_setting} to {flip_lr_stereo}")
+    
+    def get_flip_lr_stereo(self) -> bool:
+        """
+        Get the current flip left/right stereo channels configuration.
+        
+        Returns:
+            Current flip L/R stereo setting
+        """
+        return self._flip_lr_stereo
     
     def load_audio(self, audio_file: str) -> Dict[str, Any]:
         """
@@ -504,6 +533,7 @@ class NiDaqPlayer:
                 'pause_position': self._pause_position,
                 'total_audio_samples': self._audio_sample_count,
                 'volume': self.voltage_scale * 100,
+                'flip_lr_stereo': self._flip_lr_stereo,
             }
             
             # Add playback position if tasks are active
@@ -706,6 +736,11 @@ class NiDaqPlayer:
                 # Create output frame with proper size
                 data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
                 data_frame[:, :chunk_samples] = chunk_data
+
+                # Apply L/R stereo channel flipping if enabled and file has exactly 2 channels
+                if self._flip_lr_stereo and file_channels == 2 and self.nr_of_channels >= 2:
+                    # Swap channels 0 and 1 (left and right)
+                    data_frame[[0, 1]] = data_frame[[1, 0]]
                 
                 # Apply voltage scaling
                 data_frame = data_frame * self.voltage_scale

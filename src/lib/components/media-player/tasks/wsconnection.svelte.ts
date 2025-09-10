@@ -4,6 +4,7 @@ import { pauseAudioHandler } from './pause.svelte';
 import { seekAudioHandler } from './seek.svelte';
 import { volumeAudioHandler } from './volume.svelte';
 import { playerStatusHandler } from './status.svelte';
+import { flipLRStereoHandler } from './flip_lr_stereo.svelte';
 
 export function wsSendOnce({ task, data }: { task: string; data?: any }) {
     const ws = new WebSocket("ws://localhost:21749");
@@ -29,6 +30,9 @@ export function wsSendOnce({ task, data }: { task: string; data?: any }) {
                 break;
             case "volume":
                 volumeAudioHandler(ws, event.data);
+                break;
+            case "flip_lr_stereo":
+                flipLRStereoHandler(ws, event.data);
                 break;
             default:
                 console.warn("Unknown task:", task);

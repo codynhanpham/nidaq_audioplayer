@@ -32,7 +32,7 @@
 <script lang="ts">
 	import "./style.css";
 	import { getCurrentWindow } from '@tauri-apps/api/window';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { cn } from '$lib/utils.js';
 
 	import * as Avatar from "$lib/components/ui/avatar/index.js";
@@ -40,9 +40,11 @@
 	import * as HoverCard from "$lib/components/ui/hover-card/index.js";
 	import * as Select from "$lib/components/ui/select/index.js";
     import { Slider } from "$lib/components/ui/slider/index.js";
+	import { Toggle } from "$lib/components/ui/toggle/index.js";
 
 	import {
 		Disc3,
+		FlipHorizontal2,
 		Play,
 		Pause,
 		Repeat,
@@ -160,6 +162,15 @@
 		}
 	}
 
+	function updateStereoSpeakerFlip() {
+		wsSendOnce({
+			task: "flip_lr_stereo",
+			data: {
+				flip_lr_stereo: MediaPlayerData.flipLRStereo
+			}
+		});
+	}
+
 	/**
 	 * Get the current chapter title based on the current progress and chapters.
 	 * If no chapters are available, returns null.
@@ -214,18 +225,6 @@
 				task: "pause"
 			})
 		} else {
-			// if (MediaPlayerData.playbackCompleted) {
-			// 	wsSendOnce({
-			// 		task: "seek",
-			// 		data: {
-			// 			time: 0
-			// 		}
-			// 	});
-			// }
-			// wsSendOnce({
-			// 	task: "play"
-			// })
-
 			tryPlay();
 		}
 	}
@@ -489,7 +488,18 @@
 							</Select.Content>
 						</Select.Root>
 					</div>
-					<div>
+					<div class={cn((MediaPlayerData.audioInfo?.channels || 1) !== 2 ? 'hidden' : '')}>
+						<Toggle
+							aria-label="flip left/right stereo channels"
+							title={MediaPlayerData.flipLRStereo ? "Currently: Ch1 = Right  |  Ch2 = Left\nClick to UNFLIP Left/Right Stereo Channels" : "Currently: Ch1 = Left  |  Ch2 = Right\nClick to FLIP Left/Right Stereo Channels"}
+							bind:pressed={MediaPlayerData.flipLRStereo}
+							class="data-[state='on']:!bg-destructive/60 data-[state='on']:!text-destructive-foreground hover:cursor-pointer data-[state='on']:hover:!bg-destructive/50"
+							onclick={async () => { await tick(); updateStereoSpeakerFlip(); }}
+						>
+							<FlipHorizontal2 class="size-4.5 text-foreground" />
+						</Toggle>
+					</div>
+					<div class="hidden min-[430px]:block">
 						<Button variant="ghost" class="media-button" onclick={() => { cycleMediaDataLoopModes(); }} aria-label={currentLoopModeTitle()} title={currentLoopModeTitle()}>
 							{#if MediaPlayerData.loop === "none"}
 								<Repeat class="size-4 text-muted-foreground/80" />

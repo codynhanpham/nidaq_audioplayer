@@ -202,6 +202,7 @@
                 do_channels: ['/port0/line0', '/port0/line1'],
                 volume: MediaPlayerData.volume,
                 samples_per_frame: 8192,
+                flip_lr_stereo: MediaPlayerData.flipLRStereo,
             }
         });
         wsSendOnce({

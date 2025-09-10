@@ -740,7 +740,7 @@ pub async fn audio_from_playlist(path: &Path) -> Result<Response, String> {
     }
 
     // Determine the overall track settings from the loaded metadata
-    let (max_bit_depth, mut max_channels, max_sample_rate) = tracks_metadata.iter().fold(
+    let (mut max_bit_depth, mut max_channels, mut max_sample_rate) = tracks_metadata.iter().fold(
         (0, 0, 0),
         |(max_bit_depth, max_channels, max_sample_rate), meta| {
             (
@@ -750,10 +750,20 @@ pub async fn audio_from_playlist(path: &Path) -> Result<Response, String> {
             )
         },
     );
+    if max_sample_rate == 0 {
+        max_sample_rate = 44100; // default to 44.1kHz if no tracks
+    }
+    if max_bit_depth == 0 {
+        max_bit_depth = 16; // default to 16 bits if no tracks
+    }
 
     if playlist.Content.is_some() {
         max_channels = max_channels
             .max(find_max_elements_in_playlist(&playlist.Content.as_ref().unwrap()) as u32);
+    }
+
+    if max_channels == 0 {
+        max_channels = 1; // default to mono if no tracks
     }
 
     let mut tracks_data: HashMap<PathBuf, tracks::TrackData> = HashMap::new();

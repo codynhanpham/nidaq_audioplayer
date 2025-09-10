@@ -51,6 +51,7 @@ export type MediaPlayerDataType = {
     volume: number; // Current volume level, [0-100]
     muted: boolean; // Mute state of the media player
     loop: "none" | "all" | "one";
+    flipLRStereo: boolean; // Whether to flip left/right stereo channels, only apply to stereo audio
 
     pauseAutomaticWsProgressUpdate: boolean; // When this is true, progress received from WS messages are not applied to GUI
 
@@ -69,6 +70,7 @@ export const MediaPlayerData: MediaPlayerDataType = $state({
     volume: 50,
     muted: false,
     loop: "none",
+    flipLRStereo: false,
 
     pauseAutomaticWsProgressUpdate: false,
 

@@ -1,11 +1,13 @@
 [package]
 name = "nidaq_audioplayer"
-version = "0.2.1"
+version = "0.2.2"
 description = "NI-DAQmxAudioPlayer"
 authors = ["Cody Nhan Pham"]
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+default-run = "nidaq_audioplayer"
+
+
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
@@ -67,3 +69,11 @@ opt-level = 3
 [profile.release]
 codegen-units = 1
 lto = true
+
+[profile.metadata-extract]
+inherits = "release"
+strip = "debuginfo"
+
+[[bin]]
+name = "metadata_extract"
+path = "src/audio/metadata_extract/main.rs"
