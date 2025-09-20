@@ -301,11 +301,27 @@ class AudioBufferManager:
                         # More channels than needed - take first nr_of_channels
                         chunk_data = chunk_data[:, :self.nr_of_channels].T
                     elif chunk_data.shape[1] < self.nr_of_channels:
-                        # Fewer channels than needed - duplicate to fill
-                        chunk_data = chunk_data.T
-                        while chunk_data.shape[0] < self.nr_of_channels:
-                            chunk_data = np.vstack([chunk_data, chunk_data[-1]])
-                        chunk_data = chunk_data[:self.nr_of_channels]
+                        # Fewer channels than needed - map appropriately
+                        if file_channels == 2:
+                            # Special handling for stereo to multi-channel mapping
+                            # Left channel (0) -> odd output channels (0, 2, 4, ...)
+                            # Right channel (1) -> even output channels (1, 3, 5, ...)
+                            chunk_data = chunk_data.T  # Now shape is (2, samples)
+                            output_data = np.zeros((self.nr_of_channels, chunk_data.shape[1]), dtype=np.float64)
+                            
+                            # Map left channel to odd-indexed outputs (0, 2, 4, ...)
+                            output_data[0::2] = chunk_data[0]  # Left channel
+                            # Map right channel to even-indexed outputs (1, 3, 5, ...)
+                            if self.nr_of_channels > 1:
+                                output_data[1::2] = chunk_data[1]  # Right channel
+                            
+                            chunk_data = output_data
+                        else:
+                            # For non-stereo multi-channel files, duplicate to fill
+                            chunk_data = chunk_data.T
+                            while chunk_data.shape[0] < self.nr_of_channels:
+                                chunk_data = np.vstack([chunk_data, chunk_data[-1]])
+                            chunk_data = chunk_data[:self.nr_of_channels]
                     else:
                         # Exact match
                         chunk_data = chunk_data.T
@@ -316,8 +332,17 @@ class AudioBufferManager:
                 
                 # Apply L/R stereo channel flipping if enabled and file has exactly 2 channels
                 if self.flip_lr_stereo and file_channels == 2 and self.nr_of_channels >= 2:
-                    # Swap channels 0 and 1 (left and right)
-                    data_frame[[0, 1]] = data_frame[[1, 0]]
+                    # For stereo files mapped to multiple channels, swap the channel assignments
+                    # Normal: Left->odd (0,2,4...), Right->even (1,3,5...)
+                    # Flipped: Left->even (1,3,5...), Right->odd (0,2,4...)
+                    
+                    # Create temporary arrays for left and right channels
+                    left_channels = data_frame[0::2].copy()   # Odd positions (0, 2, 4, ...)
+                    right_channels = data_frame[1::2].copy()  # Even positions (1, 3, 5, ...)
+                    
+                    # Swap the assignments
+                    data_frame[0::2] = right_channels  # Put right on odd positions
+                    data_frame[1::2] = left_channels   # Put left on even positions
                 
                 # Apply voltage scaling
                 data_frame = data_frame * self.voltage_scale

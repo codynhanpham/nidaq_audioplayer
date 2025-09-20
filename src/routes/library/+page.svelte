@@ -17,8 +17,6 @@
         try {
             const metadata = await invoke("get_media_metadata", { path: file }) as AudioInfo & {extras?: Record<string, any>} | undefined;
 
-            // console.log(metadata);
-
             // Should drop extras from metadata most of the time since it will eat up memory
             // (extra metadata like lyrics or additional artwork)
             // Only set dropExtras=false if you really want to list all metadata from the file
@@ -197,11 +195,11 @@
             data: {
                 device_name: StatusBarData.niDaqSelectedDevice?.name,
                 file_path: data.path,
-                ao_channels: ['/ao0', '/ao1'],
-                ai_channels: ['/ai0', '/ai1'],
+                ao_channels: ['/ao0', '/ao1', '/ao2', '/ao3'], // On stereo file, backend will assign Left to ao0 and ao2, Right to ao1 and ao3
+                ai_channels: [],
                 do_channels: ['/port0/line0', '/port0/line1'],
                 volume: MediaPlayerData.volume,
-                samples_per_frame: 8192,
+                samples_per_frame: 8192, // Slightly larger buffer to absolutely avoid underflow (especially for high compression files on slow computers)
                 flip_lr_stereo: MediaPlayerData.flipLRStereo,
             }
         });

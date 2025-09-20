@@ -47,7 +47,10 @@ class NiDaqPlayer:
             if device_name in cls._instances:
                 existing = cls._instances[device_name]()
                 if existing is not None:
-                    # Stop and cleanup existing instance
+                    # Return existing instance if fully initialized
+                    if hasattr(existing, '_initialized'):
+                        return existing
+                    # If not fully initialized, clean it up and create new
                     existing.stop()
                     existing._cleanup()
             
@@ -85,7 +88,8 @@ class NiDaqPlayer:
         Args:
             device_name: NI-DAQ device name (e.g., 'Dev1')
             ao_channels: List of analog output channels (e.g., ['/ao0', '/ao1'])
-            ai_channels: List of analog input channels (e.g., ['/ai0', '/ai1'])
+            ai_channels: List of analog input channels (e.g., ['/ai0', '/ai1']). 
+                        If None or empty, no analog input will be configured.
             do_channels: List of digital output channels (e.g., ['/port0/line0', '/port0/line1'])
             sample_rate: Default sample rate (will be overridden by audio file)
             samples_per_frame: Number of samples per frame
@@ -102,13 +106,11 @@ class NiDaqPlayer:
         if ao_channels is None:
             ao_channels = ['/ao0', '/ao1']
         if ai_channels is None:
-            ai_channels = ['/ai0', '/ai1']
+            ai_channels = []  # Default to no analog input channels
         if do_channels is None:
             do_channels = ['/port0/line0', '/port0/line1']
         
         # Validate configuration
-        if len(ao_channels) != len(ai_channels):
-            raise NiDaqPlayerError("Number of analog output channels must match analog input channels")
         if len(ao_channels) == 0:
             raise NiDaqPlayerError("At least one analog output channel must be specified")
         
@@ -204,9 +206,9 @@ class NiDaqPlayer:
             if do_channels is not None:
                 self.do_channels = do_channels
             
-            # Validate new configuration
-            if len(self.ao_channels) != len(self.ai_channels):
-                raise NiDaqPlayerError("Number of analog output channels must match analog input channels")
+            # Validate new configuration - only check that we have at least one AO channel
+            if len(self.ao_channels) == 0:
+                raise NiDaqPlayerError("At least one analog output channel must be specified")
             
             self.nr_of_channels = len(self.ao_channels)
             
@@ -363,7 +365,8 @@ class NiDaqPlayer:
                     print("Starting audio playback...")
                 
                 # Start tasks
-                self.ai_task.start()  # Arms AI but doesn't trigger
+                if self.ai_task:
+                    self.ai_task.start()  # Arms AI but doesn't trigger
                 # Send digital trigger pulse asynchronously
                 self.do_task.write([True] * len(self.do_channels))
                 self.ao_task.start()  # Triggers both AO and AI simultaneously
@@ -379,7 +382,15 @@ class NiDaqPlayer:
     
     def stop(self) -> None:
         """Stop audio playback and reset to beginning."""
+        # Check if _state_lock exists (instance may not be fully initialized)
+        if not hasattr(self, '_state_lock'):
+            return
+            
         with self._state_lock:
+            # Check if basic state attributes exist
+            if not hasattr(self, '_playing') or not hasattr(self, '_paused'):
+                return
+                
             if not self._playing and not self._paused:
                 return
             
@@ -576,27 +587,31 @@ class NiDaqPlayer:
         try:
             # Create tasks
             self.ao_task = ni.Task()
-            self.ai_task = ni.Task()
             self.do_task = ni.Task()
             
-            # Configure analog input
-            ai_args = {
-                'min_val': self.ai_voltage_range[0],
-                'max_val': self.ai_voltage_range[1],
-                'terminal_config': TerminalConfiguration.RSE
-            }
+            # Only create AI task if analog input channels are specified
+            if self.ai_channels:
+                self.ai_task = ni.Task()
             
-            for ai_channel in self.ai_channels:
-                self.ai_task.ai_channels.add_ai_voltage_chan(
-                    self.device_name + ai_channel, **ai_args)
-            
-            self.ai_task.timing.cfg_samp_clk_timing(
-                rate=self.sample_rate, 
-                sample_mode=AcquisitionType.CONTINUOUS)
-            self.ai_task.triggers.start_trigger.cfg_dig_edge_start_trig(
-                "ao/StartTrigger", trigger_edge=Edge.RISING)
-            self.ai_task.in_stream.input_buf_size = (
-                self.samples_per_frame * self.frames_per_buffer * self.nr_of_channels)
+            # Configure analog input (only if AI channels exist)
+            if self.ai_channels:
+                ai_args = {
+                    'min_val': self.ai_voltage_range[0],
+                    'max_val': self.ai_voltage_range[1],
+                    'terminal_config': TerminalConfiguration.RSE
+                }
+                
+                for ai_channel in self.ai_channels:
+                    self.ai_task.ai_channels.add_ai_voltage_chan(
+                        self.device_name + ai_channel, **ai_args)
+                
+                self.ai_task.timing.cfg_samp_clk_timing(
+                    rate=self.sample_rate, 
+                    sample_mode=AcquisitionType.CONTINUOUS)
+                self.ai_task.triggers.start_trigger.cfg_dig_edge_start_trig(
+                    "ao/StartTrigger", trigger_edge=Edge.RISING)
+                self.ai_task.in_stream.input_buf_size = (
+                    self.samples_per_frame * self.frames_per_buffer * self.nr_of_channels)
             
             # Configure analog output
             ao_args = {
@@ -622,15 +637,21 @@ class NiDaqPlayer:
             self.do_task.write([False] * len(self.do_channels))
             
             # Create stream readers/writers
-            self.reader = stream_readers.AnalogMultiChannelReader(self.ai_task.in_stream)
             self.writer = stream_writers.AnalogMultiChannelWriter(self.ao_task.out_stream)
             
-            # Create read buffer
-            self._read_buffer = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
+            # Only create reader and read buffer if AI channels exist
+            if self.ai_channels:
+                self.reader = stream_readers.AnalogMultiChannelReader(self.ai_task.in_stream)
+                # Create read buffer using AI channel count
+                self._read_buffer = np.zeros((len(self.ai_channels), self.samples_per_frame), dtype=np.float64)
+            else:
+                self.reader = None
+                self._read_buffer = None
             
             # Register callbacks
-            self.ai_task.register_every_n_samples_acquired_into_buffer_event(
-                self.samples_per_frame, self._reading_callback)
+            if self.ai_channels:
+                self.ai_task.register_every_n_samples_acquired_into_buffer_event(
+                    self.samples_per_frame, self._reading_callback)
             self.ao_task.register_every_n_samples_transferred_from_buffer_event(
                 self.samples_per_frame, self._writing_callback)
             self.ao_task.register_done_event(self._done_callback)
@@ -724,11 +745,27 @@ class NiDaqPlayer:
                         # More channels than needed - take first nr_of_channels
                         chunk_data = chunk_data[:, :self.nr_of_channels].T
                     elif chunk_data.shape[1] < self.nr_of_channels:
-                        # Fewer channels than needed - duplicate to fill
-                        chunk_data = chunk_data.T
-                        while chunk_data.shape[0] < self.nr_of_channels:
-                            chunk_data = np.vstack([chunk_data, chunk_data[-1]])
-                        chunk_data = chunk_data[:self.nr_of_channels]
+                        # Fewer channels than needed - map appropriately
+                        if file_channels == 2:
+                            # Special handling for stereo to multi-channel mapping
+                            # Left channel (0) -> odd output channels (0, 2, 4, ...)
+                            # Right channel (1) -> even output channels (1, 3, 5, ...)
+                            chunk_data = chunk_data.T  # Now shape is (2, samples)
+                            output_data = np.zeros((self.nr_of_channels, chunk_data.shape[1]), dtype=np.float64)
+                            
+                            # Map left channel to odd-indexed outputs (0, 2, 4, ...)
+                            output_data[0::2] = chunk_data[0]  # Left channel
+                            # Map right channel to even-indexed outputs (1, 3, 5, ...)
+                            if self.nr_of_channels > 1:
+                                output_data[1::2] = chunk_data[1]  # Right channel
+                            
+                            chunk_data = output_data
+                        else:
+                            # For non-stereo multi-channel files, duplicate to fill
+                            chunk_data = chunk_data.T
+                            while chunk_data.shape[0] < self.nr_of_channels:
+                                chunk_data = np.vstack([chunk_data, chunk_data[-1]])
+                            chunk_data = chunk_data[:self.nr_of_channels]
                     else:
                         # Exact match
                         chunk_data = chunk_data.T
@@ -739,8 +776,17 @@ class NiDaqPlayer:
 
                 # Apply L/R stereo channel flipping if enabled and file has exactly 2 channels
                 if self._flip_lr_stereo and file_channels == 2 and self.nr_of_channels >= 2:
-                    # Swap channels 0 and 1 (left and right)
-                    data_frame[[0, 1]] = data_frame[[1, 0]]
+                    # For stereo files mapped to multiple channels, swap the channel assignments
+                    # Normal: Left->odd (0,2,4...), Right->even (1,3,5...)
+                    # Flipped: Left->even (1,3,5...), Right->odd (0,2,4...)
+                    
+                    # Create temporary arrays for left and right channels
+                    left_channels = data_frame[0::2].copy()   # Odd positions (0, 2, 4, ...)
+                    right_channels = data_frame[1::2].copy()  # Even positions (1, 3, 5, ...)
+                    
+                    # Swap the assignments
+                    data_frame[0::2] = right_channels  # Put right on odd positions
+                    data_frame[1::2] = left_channels   # Put left on even positions
                 
                 # Apply voltage scaling
                 data_frame = data_frame * self.voltage_scale
@@ -808,7 +854,7 @@ class NiDaqPlayer:
     def _reading_callback(self, task_idx, event_type, num_samples, callback_data=None):
         """Callback for reading input data."""
         try:
-            if self._read_buffer is not None:
+            if self._read_buffer is not None and self.reader is not None:
                 self.reader.read_many_sample(
                     self._read_buffer, num_samples, 
                     timeout=ni.constants.WAIT_INFINITELY)
@@ -864,14 +910,20 @@ class NiDaqPlayer:
     
     def _cleanup(self) -> None:
         """Clean up resources."""
+        # Check if _state_lock exists (instance may not be fully initialized)
+        if not hasattr(self, '_state_lock'):
+            return
+            
         with self._state_lock:
             try:
-                if self._playing:
+                # Check if basic state attributes exist before accessing them
+                if hasattr(self, '_playing') and self._playing:
                     self.stop()
                 self._clear_tasks()
-                if self._buffer_manager:
+                if hasattr(self, '_buffer_manager') and self._buffer_manager:
                     self._buffer_manager.cleanup()
-                print(f"NiDaqPlayer cleanup completed for device {self.device_name}")
+                device_name = getattr(self, 'device_name', 'unknown')
+                print(f"NiDaqPlayer cleanup completed for device {device_name}")
             except Exception as e:
                 print(f"Error during cleanup: {e}")
     
