@@ -92,7 +92,7 @@ async def monitor_playback_progress(websocket):
                     print(f"Failed to send completion notification: {e}")
                 break
 
-            await asyncio.sleep(0.075)
+            await asyncio.sleep(0.1)
 
         # Check if playback completed
     # if status.get('audio_completed', False):

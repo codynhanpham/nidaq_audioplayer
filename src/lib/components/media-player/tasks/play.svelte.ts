@@ -1,4 +1,8 @@
 import { MediaPlayerData } from '@components/media-player';
+export const updateStatus = {
+    lastUpdated: 0,
+    interval: 330, // milliseconds
+}
 
 export function playAudioHandler(websocket: WebSocket, message: string) {
     const data = JSON.parse(message);
@@ -11,24 +15,38 @@ export function playAudioHandler(websocket: WebSocket, message: string) {
     }
 
     if (data.id === "progress_update") {
-        const playerInfo = data.data;
-    
-        MediaPlayerData.duration = playerInfo.duration;
-        if (MediaPlayerData.audioInfo) {
-            MediaPlayerData.audioInfo.duration = playerInfo.duration;
-        }
-        MediaPlayerData.isPlaying = playerInfo.playing;
-        MediaPlayerData.playbackCompleted = playerInfo.audio_completed;
+        // Use request animation frame to update UI smoothly
+        const updateProgress = () => {
+            const playerInfo = data.data;
+            if (!playerInfo) {
+                return;
+            }
 
-        if (!MediaPlayerData.pauseAutomaticWsProgressUpdate) {
-            MediaPlayerData.progress = playerInfo.progress_percent;
+            if (Date.now() - updateStatus.lastUpdated < updateStatus.interval) {
+                return;
+            }
+        
+            MediaPlayerData.duration = playerInfo.duration;
+            if (MediaPlayerData.audioInfo) {
+                MediaPlayerData.audioInfo.duration = playerInfo.duration;
+            }
+            MediaPlayerData.isPlaying = playerInfo.playing;
+            MediaPlayerData.playbackCompleted = playerInfo.audio_completed;
+
+            if (!MediaPlayerData.pauseAutomaticWsProgressUpdate) {
+                MediaPlayerData.progress = playerInfo.progress_percent;
+            }
+            updateStatus.lastUpdated = Date.now();
         }
+        requestAnimationFrame(updateProgress);
+        return;
     }
 
     if (data.id === "playback_completed") {
         MediaPlayerData.isPlaying = false;
         MediaPlayerData.playbackCompleted = data.data.final_status.audio_completed;
+        MediaPlayerData.progress = 100;
+        MediaPlayerData.duration = data.data.final_status.duration;
         websocket.close();
     }
-
 }
