@@ -1,7 +1,7 @@
 import { MediaPlayerData } from '@components/media-player';
 export const updateStatus = {
     lastUpdated: 0,
-    interval: 330, // milliseconds
+    interval: 100, // milliseconds
 }
 
 export function playAudioHandler(websocket: WebSocket, message: string) {

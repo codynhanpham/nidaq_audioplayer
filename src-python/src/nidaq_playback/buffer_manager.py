@@ -273,82 +273,82 @@ class AudioBufferManager:
             # Ensure start position is valid
             current_pos = max(0, min(start_sample, total_samples - 1))
             
-            while current_pos < total_samples:
-                # Calculate how many samples to read for this chunk
-                # Only load the necessary chunk for speed + memory usage
-                chunk_samples = min(self.samples_per_frame, total_samples - current_pos)
-                
-                chunk_data, sample_rate = sf.read(
-                    file_path, 
-                    start=current_pos, 
-                    frames=chunk_samples,
-                    dtype='float64'
-                )
-                
-                # Handle different channel configurations
-                if chunk_data.ndim == 1:
-                    # Mono - duplicate to match the number of output channels
-                    if file_channels == 1:
-                        # Single channel, tile to match output channels
-                        chunk_data = np.tile(chunk_data, (self.nr_of_channels, 1))
-                    else:
-                        # This shouldn't happen, but handle gracefully
-                        chunk_data = chunk_data.reshape(-1, 1).T
-                        chunk_data = np.tile(chunk_data, (self.nr_of_channels, 1))
-                else:
-                    # Multi-channel audio
-                    if chunk_data.shape[1] > self.nr_of_channels:
-                        # More channels than needed - take first nr_of_channels
-                        chunk_data = chunk_data[:, :self.nr_of_channels].T
-                    elif chunk_data.shape[1] < self.nr_of_channels:
-                        # Fewer channels than needed - map appropriately
-                        if file_channels == 2:
-                            # Special handling for stereo to multi-channel mapping
-                            # Left channel (0) -> odd output channels (0, 2, 4, ...)
-                            # Right channel (1) -> even output channels (1, 3, 5, ...)
-                            chunk_data = chunk_data.T  # Now shape is (2, samples)
-                            output_data = np.zeros((self.nr_of_channels, chunk_data.shape[1]), dtype=np.float64)
-                            
-                            # Map left channel to odd-indexed outputs (0, 2, 4, ...)
-                            output_data[0::2] = chunk_data[0]  # Left channel
-                            # Map right channel to even-indexed outputs (1, 3, 5, ...)
-                            if self.nr_of_channels > 1:
-                                output_data[1::2] = chunk_data[1]  # Right channel
-                            
-                            chunk_data = output_data
+            with sf.SoundFile(file_path) as audio_file:
+                # Seek to start position if needed
+                if current_pos > 0:
+                    audio_file.seek(current_pos)
+                    
+                while current_pos < total_samples:
+                    # Calculate how many samples to read for this chunk
+                    # Only load the necessary chunk for speed + memory usage
+                    chunk_samples = min(self.samples_per_frame, total_samples - current_pos)
+                    
+                    chunk_data = audio_file.read(frames=chunk_samples, dtype='float64')
+                    
+                    # Handle different channel configurations
+                    if chunk_data.ndim == 1:
+                        # Mono - duplicate to match the number of output channels
+                        if file_channels == 1:
+                            # Single channel, tile to match output channels
+                            chunk_data = np.tile(chunk_data, (self.nr_of_channels, 1))
                         else:
-                            # For non-stereo multi-channel files, duplicate to fill
-                            chunk_data = chunk_data.T
-                            while chunk_data.shape[0] < self.nr_of_channels:
-                                chunk_data = np.vstack([chunk_data, chunk_data[-1]])
-                            chunk_data = chunk_data[:self.nr_of_channels]
+                            # This shouldn't happen, but handle gracefully
+                            chunk_data = chunk_data.reshape(-1, 1).T
+                            chunk_data = np.tile(chunk_data, (self.nr_of_channels, 1))
                     else:
-                        # Exact match
-                        chunk_data = chunk_data.T
-                
-                # Create output frame with proper size
-                data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
-                data_frame[:, :chunk_samples] = chunk_data
-                
-                # Apply L/R stereo channel flipping if enabled and file has exactly 2 channels
-                if self.flip_lr_stereo and file_channels == 2 and self.nr_of_channels >= 2:
-                    # For stereo files mapped to multiple channels, swap the channel assignments
-                    # Normal: Left->odd (0,2,4...), Right->even (1,3,5...)
-                    # Flipped: Left->even (1,3,5...), Right->odd (0,2,4...)
+                        # Multi-channel audio
+                        if chunk_data.shape[1] > self.nr_of_channels:
+                            # More channels than needed - take first nr_of_channels
+                            chunk_data = chunk_data[:, :self.nr_of_channels].T
+                        elif chunk_data.shape[1] < self.nr_of_channels:
+                            # Fewer channels than needed - map appropriately
+                            if file_channels == 2:
+                                # Special handling for stereo to multi-channel mapping
+                                # Left channel (0) -> odd output channels (0, 2, 4, ...)
+                                # Right channel (1) -> even output channels (1, 3, 5, ...)
+                                chunk_data = chunk_data.T  # Now shape is (2, samples)
+                                output_data = np.zeros((self.nr_of_channels, chunk_data.shape[1]), dtype=np.float64)
+                                
+                                # Map left channel to odd-indexed outputs (0, 2, 4, ...)
+                                output_data[0::2] = chunk_data[0]  # Left channel
+                                # Map right channel to even-indexed outputs (1, 3, 5, ...)
+                                if self.nr_of_channels > 1:
+                                    output_data[1::2] = chunk_data[1]  # Right channel
+                                
+                                chunk_data = output_data
+                            else:
+                                # For non-stereo multi-channel files, duplicate to fill
+                                chunk_data = chunk_data.T
+                                while chunk_data.shape[0] < self.nr_of_channels:
+                                    chunk_data = np.vstack([chunk_data, chunk_data[-1]])
+                                chunk_data = chunk_data[:self.nr_of_channels]
+                        else:
+                            # Exact match
+                            chunk_data = chunk_data.T
                     
-                    # Create temporary arrays for left and right channels
-                    left_channels = data_frame[0::2].copy()   # Odd positions (0, 2, 4, ...)
-                    right_channels = data_frame[1::2].copy()  # Even positions (1, 3, 5, ...)
+                    # Create output frame with proper size
+                    data_frame = np.zeros((self.nr_of_channels, self.samples_per_frame), dtype=np.float64)
+                    data_frame[:, :chunk_samples] = chunk_data
                     
-                    # Swap the assignments
-                    data_frame[0::2] = right_channels  # Put right on odd positions
-                    data_frame[1::2] = left_channels   # Put left on even positions
-                
-                # Apply voltage scaling
-                data_frame = data_frame * self.voltage_scale
-                
-                yield data_frame
-                current_pos += chunk_samples
+                    # Apply L/R stereo channel flipping if enabled and file has exactly 2 channels
+                    if self.flip_lr_stereo and file_channels == 2 and self.nr_of_channels >= 2:
+                        # For stereo files mapped to multiple channels, swap the channel assignments
+                        # Normal: Left->odd (0,2,4...), Right->even (1,3,5...)
+                        # Flipped: Left->even (1,3,5...), Right->odd (0,2,4...)
+                        
+                        # Create temporary arrays for left and right channels
+                        left_channels = data_frame[0::2].copy()   # Odd positions (0, 2, 4, ...)
+                        right_channels = data_frame[1::2].copy()  # Even positions (1, 3, 5, ...)
+                        
+                        # Swap the assignments
+                        data_frame[0::2] = right_channels  # Put right on odd positions
+                        data_frame[1::2] = left_channels   # Put left on even positions
+                    
+                    # Apply voltage scaling
+                    data_frame = data_frame * self.voltage_scale
+                    
+                    yield data_frame
+                    current_pos += chunk_samples
             
             return
             
