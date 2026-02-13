@@ -42,10 +42,17 @@ export function playAudioHandler(websocket: WebSocket, message: string) {
         return;
     }
 
+    // This event fires when either playback completes, playback is paused, or something else causes the audio to stop
     if (data.id === "playback_completed") {
         MediaPlayerData.isPlaying = false;
         MediaPlayerData.playbackCompleted = data.data.final_status.audio_completed;
-        MediaPlayerData.progress = 100;
+        
+        if (data.data.final_status.audio_completed) {
+            MediaPlayerData.progress = 100;
+        } else {
+            MediaPlayerData.progress = data.data.final_status.current_time / data.data.final_status.duration * 100;
+        }
+        
         MediaPlayerData.duration = data.data.final_status.duration;
         websocket.close();
     }
