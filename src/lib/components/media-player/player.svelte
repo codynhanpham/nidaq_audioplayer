@@ -26,6 +26,34 @@
 			task: "play"
 		})
 	}
+
+	/**
+	 * Calculate the duration string in H:M:SS.s format
+	 * @param duration Total duration of the media in seconds, if null, default to 0:00
+	 * @return Formatted duration string in H:M:SS.s format
+	 */
+	export function formatDuration(duration: number | null): string {
+		if (duration === null) return '0:00.0';
+		// Calc H:M:SS
+		const hours = Math.floor(duration / 3600);
+		const minutes = Math.floor((duration % 3600) / 60);
+		// const seconds = duration % 60;
+		// Round seconds to 1 decimal place
+		const seconds = Math.floor(duration % 60);
+		const milliseconds = Math.floor((duration % 1) * 1000);
+		// return `${hours > 0 ? hours + ':' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+		let result = '';
+		if (hours > 0) {
+			result += hours + ':';
+		}
+		if (hours > 0 && minutes < 10) {
+			result += '0';
+		}
+		result += minutes + ':';
+		result += seconds < 10 ? '0' + seconds : seconds;
+		result += '.' + Math.floor(milliseconds / 100);
+		return result;
+	}
 </script>
 
 
@@ -105,33 +133,7 @@
 		});
 	});
 
-	/**
-	 * Calculate the duration string in H:M:SS.s format
-	 * @param duration Total duration of the media in seconds, if null, default to 0:00
-	 * @return Formatted duration string in H:M:SS.s format
-	 */
-	function formatDuration(duration: number | null): string {
-		if (duration === null) return '0:00.0';
-		// Calc H:M:SS
-		const hours = Math.floor(duration / 3600);
-		const minutes = Math.floor((duration % 3600) / 60);
-		// const seconds = duration % 60;
-		// Round seconds to 1 decimal place
-		const seconds = Math.floor(duration % 60);
-		const milliseconds = Math.floor((duration % 1) * 1000);
-		// return `${hours > 0 ? hours + ':' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-		let result = '';
-		if (hours > 0) {
-			result += hours + ':';
-		}
-		if (hours > 0 && minutes < 10) {
-			result += '0';
-		}
-		result += minutes + ':';
-		result += seconds < 10 ? '0' + seconds : seconds;
-		result += '.' + Math.floor(milliseconds / 100);
-		return result;
-	}
+
 	/**
 	 * Calculate and format the current progress (given a total duration) in H:M:SS format
 	 * @param progress Current playback progress as a percentage [0-100], null if no media loaded
@@ -316,7 +318,7 @@
 		'mediaplayer-override isolate',
 		'bg-background/40',
 		// 'bg-background/70 backdrop-blur-3xl',
-		'pointer-events-auto fixed left-0 bottom-6 z-[99999]',
+		'pointer-events-auto fixed left-0 bottom-6 z-99999',
 		className,
 		((MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo.chapters.length > 0) ? 'h-21' : 'h-19'),
 		'w-full sm:h-16.5',
@@ -331,7 +333,7 @@
 				type="single"
 				data-progress-slider
 				thumbPositioning={"exact"}
-				class="group/slider py-1 w-[calc(100%-var(--spacing)*2)] mx-auto [&_[data-slot='slider-track']]:!cursor-pointer [&_[data-slot='slider-track']]:!mask-linear-[270deg,transparent_-8em,black_calc(var(--spacing)*4+1.5%)),black_calc(100%-var(--spacing)*4-1.5%)),transparent_calc(100%+8em)] [&_[data-slot='slider-track']]:!mask-r-from-99% [&_[data-slot='slider-track']]:duration-200 [&_[data-slot='slider-track']]:!h-0.5 [&_[data-slot='slider-track']]:group-hover/player:!h-1 [&_[data-slot='slider-track']]:group-active/player:!h-1 [&_[data-slot='slider-track']]:group-focus-within/player:!h-1 [&_[data-slot='slider-range']]:!bg-primary/90 [&_[data-slot='slider-range']]:!backdrop-blur-3xl [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!p-1 [&_[data-slot='slider-thumb']]:!bg-primary [&_[data-slot='slider-thumb']]:!border-none [&_[data-slot='slider-thumb']]:!opacity-0 [&_[data-slot='slider-thumb']]:group-hover/player:!opacity-100 [&_[data-slot='slider-thumb']]:group-active/player:!opacity-100 [&_[data-slot='slider-thumb']]:group-focus-within/player:!opacity-100 [&_[data-slot='slider-thumb']]:focus-visible:!opacity-100 [&_[data-slot='slider-thumb']]:!transition-opacity [&_[data-slot='slider-thumb']]:!duration-200"
+				class="group/slider py-1 w-[calc(100%-var(--spacing)*2)] mx-auto **:data-[slot='slider-track']:cursor-pointer! **:data-[slot='slider-track']:mask-linear-[270deg,transparent_-8em,black_calc(var(--spacing)*4+1.5%),black_calc(100%-var(--spacing)*4-1.5%),transparent_calc(100%+8em)]! **:data-[slot='slider-track']:mask-r-from-99%! **:data-[slot='slider-track']:duration-200 **:data-[slot='slider-track']:h-0.5! **:data-[slot='slider-track']:group-hover/player:h-1! **:data-[slot='slider-track']:group-active/player:h-1! **:data-[slot='slider-track']:group-focus-within/player:h-1! **:data-[slot='slider-range']:bg-primary/90! **:data-[slot='slider-range']:backdrop-blur-3xl! **:data-[slot='slider-thumb']:size-3! **:data-[slot='slider-thumb']:p-1! **:data-[slot='slider-thumb']:bg-primary! **:data-[slot='slider-thumb']:border-none! **:data-[slot='slider-thumb']:opacity-0! **:data-[slot='slider-thumb']:group-hover/player:opacity-100! **:data-[slot='slider-thumb']:group-active/player:opacity-100! **:data-[slot='slider-thumb']:group-focus-within/player:opacity-100! **:data-[slot='slider-thumb']:focus-visible:opacity-100! **:data-[slot='slider-thumb']:transition-opacity! **:data-[slot='slider-thumb']:duration-200!"
 				value={throttledSliderValue}
 				min={0}
 				max={Math.ceil((MediaPlayerData.duration || 0) * 1000)}
@@ -382,11 +384,11 @@
 				<span class="shrink-0">{formatProgress(MediaPlayerData.progress, MediaPlayerData.duration)}</span>
 				{#if MediaPlayerData.audioInfo?.chapters}
 					<Select.Root type="single" bind:value={currentChapter} disabled={!MediaPlayerData.audioInfo?.chapters || MediaPlayerData.audioInfo.chapters.length === 0}>
-						<Select.Trigger class={"border-none shrink !pt-0.5 !pb-0.5 !px-2.5 !h-fit"} aria-label="Chapters" title="Chapters">
+						<Select.Trigger class={"border-none shrink pt-0.5! pb-0.5! px-2.5! h-fit!"} aria-label="Chapters" title="Chapters">
 							<!-- <TableOfContents class={"size-4 text-foreground"} /> -->
 							<span class="text-wrap text-xs text-muted-foreground font-bold max-w-full line-clamp-1 text-ellipsis">{getCurrentChapter()?.split('__')[2]}</span>
 						</Select.Trigger>
-						<Select.Content class="z-[99999]" side="top" sideOffset={-1} collisionPadding={{top: 42}}>
+						<Select.Content class="z-99999" side="top" sideOffset={-1} collisionPadding={{top: 42}}>
 							<Select.SelectGroup>
 								<Select.Label class="py-1 px-1.5">Chapters</Select.Label>
 								{#if MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo?.chapters.length > 0}
@@ -438,7 +440,7 @@
 
 				<section data-player-media-info class="flex flex-1 grow items-center justify-center gap-4 sm:gap-5">
 					{#if MediaPlayerData.audioInfo}
-						<div class="[&_div]:!rounded-sm [&_span]:!rounded-sm">
+						<div class="[&_div]:rounded-sm! [&_span]:rounded-sm!" title={MediaPlayerData.audioInfo?.name || ""}>
 							{#if MediaPlayerData.audioInfo?.thumbnail}
 								<Avatar.Root class="size-8 sm:size-9">
 									<Avatar.Image class="h-full aspect-square" src={MediaPlayerData.audioInfo.thumbnail} alt="Album Cover" />
@@ -466,10 +468,10 @@
 				<section data-player-options class="flex items-center justify-center gap-0.5">
 					<div class="hidden sm:block">
 						<Select.Root type="single" bind:value={currentChapter} disabled={!MediaPlayerData.audioInfo?.chapters || MediaPlayerData.audioInfo.chapters.length === 0}>
-							<Select.Trigger class={"!bg-transparent media-button border-none"} aria-label="Chapters" title="Chapters">
+							<Select.Trigger class={"bg-transparent! media-button border-none"} aria-label="Chapters" title="Chapters">
 								<TableOfContents class={"size-4 text-foreground"} />
 							</Select.Trigger>
-							<Select.Content class="z-[99999] bg-background/85 backdrop-blur-2xl" side="top" sideOffset={14} collisionPadding={{top: 42, right: 4}}>
+							<Select.Content class="z-99999 bg-background/85 backdrop-blur-2xl" side="top" sideOffset={14} collisionPadding={{top: 42, right: 4}}>
 								<Select.SelectGroup>
 									<Select.Label class="py-1 px-1.5">Chapters</Select.Label>
 									{#if MediaPlayerData.audioInfo?.chapters && MediaPlayerData.audioInfo?.chapters.length > 0}
@@ -493,7 +495,7 @@
 							aria-label="flip left/right stereo channels"
 							title={MediaPlayerData.flipLRStereo ? "Currently: Ch1 = Right  |  Ch2 = Left\nClick to UNFLIP Left/Right Stereo Channels" : "Currently: Ch1 = Left  |  Ch2 = Right\nClick to FLIP Left/Right Stereo Channels"}
 							bind:pressed={MediaPlayerData.flipLRStereo}
-							class="data-[state='on']:!bg-destructive/60 data-[state='on']:!text-destructive-foreground hover:cursor-pointer data-[state='on']:hover:!bg-destructive/50"
+							class="data-[state='on']:bg-destructive/60! data-[state='on']:text-destructive-foreground! hover:cursor-pointer data-[state='on']:hover:bg-destructive/50!"
 							onclick={async () => { await tick(); updateStereoSpeakerFlip(); }}
 						>
 							<FlipHorizontal2 class="size-4.5 text-foreground" />
@@ -524,9 +526,9 @@
 									<Volume1 class="size-4" />
 								{/if}
 							</HoverCard.Trigger>
-							<HoverCard.Content class="z-[99999] bg-background/70 backdrop-blur-2xl w-fit h-fit px-2 pt-2 pb-4.5 flex flex-col items-center justify-start" side="top" sideOffset={-1} collisionPadding={{top: 42, right: 4}}>
+							<HoverCard.Content class="z-99999 bg-background/70 backdrop-blur-2xl w-fit h-fit px-2 pt-2 pb-4.5 flex flex-col items-center justify-start" side="top" sideOffset={-1} collisionPadding={{top: 42, right: 4}}>
 								<span class="text-[9px] text-primary/90 font-semibold select-none pointer-events-none mb-2 p-0 w-[4.5ch] text-center">{MediaPlayerData.volume}%</span>
-								<Slider type="single" orientation="vertical" bind:value={MediaPlayerData.volume} min={0} max={100} step={1} thumbPositioning="exact" class="!max-h-38 !min-h-20 [@media(max-height:360px)]:!min-h-16 !min-w-1 [&_[data-slot='slider-track']]:!bg-muted-foreground/70 [&_[data-slot='slider-track']]:!w-1 [&_[data-slot='slider-thumb']]:!size-3 [&_[data-slot='slider-thumb']]:!p-1 [&_[data-slot='slider-thumb']]:!bg-primary"
+								<Slider type="single" orientation="vertical" bind:value={MediaPlayerData.volume} min={0} max={100} step={1} thumbPositioning="exact" class="max-h-38! min-h-20! [@media(max-height:360px)]:min-h-16! min-w-1! **:data-[slot='slider-track']:bg-muted-foreground/70! **:data-[slot='slider-track']:w-1! **:data-[slot='slider-thumb']:size-3! **:data-[slot='slider-thumb']:p-1! **:data-[slot='slider-thumb']:bg-primary!"
 								onValueChange={() => { 
 									setPlayerVolume();
 								}}

@@ -1,7 +1,10 @@
 import { load, type Store } from '@tauri-apps/plugin-store';
 import { invoke } from "@tauri-apps/api/core";
 
-export const libraryStore = load('library.json', { autoSave: false }).then((data) => {
+export const libraryStore = load('library.json', {
+    autoSave: false,
+    defaults: {}
+}).then((data) => {
     return data as Store;
 });
 
@@ -20,10 +23,10 @@ export type Library = {
     libraryStats: LibraryDirInfo[];
 };
 
-export function updateLibraryStore(store: Store, data: Library) {
-    store.set('library', data);
+export async function updateLibraryStore(store: Store, data: Library) {
+    await store.set('library', data);
     lastStoreUpdated = Date.now();
-    store.save();
+    await store.save();
 }
 
 export async function listLibraryDirs(store: Store): Promise<string[]> {
@@ -61,7 +64,7 @@ export async function rescanLibrary(store: Store): Promise<Library | undefined> 
             audioFiles: scanResult.paths,
             libraryStats: scanResult.stats
         };
-        updateLibraryStore(store, library);
+        await updateLibraryStore(store, library);
     }
     return scanResult ? {
         audioFiles: scanResult.paths,

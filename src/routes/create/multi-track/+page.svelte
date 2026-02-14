@@ -69,7 +69,7 @@
         const audioBuffer = await invoke("audio_from_playlist", { path: pathsToSearch }) as ArrayBuffer;
         console.log("Finished. Audio buffer length: ", audioBuffer.byteLength);
 
-		// audioBuffer is the ArrayBuffer you got from invoke(...)
+		// audioBuffer is the ArrayBuffer got back from invoke(...)
 		const blob = new Blob([audioBuffer], { type: "audio/flac" });
 		const url = URL.createObjectURL(blob);
 		const audioElement = document.getElementById("audio-player") as HTMLAudioElement;
@@ -88,12 +88,9 @@
 			downloadLink.href = url;
 			// Suggest a filename based on the dropped path
 			const suggestedName = pathsToSearch.split(/[/\\]/).pop() || 'audio.flac';
-			// Ensure extension
-			if (!/\.flac$/i.test(suggestedName)) {
-				downloadLink.download = suggestedName + '.flac';
-			} else {
-				downloadLink.download = suggestedName;
-			}
+			// Remove existing extension and add .flac
+			const baseName = suggestedName.replace(/\.[^.]*$/, '');
+			downloadLink.download = baseName + '.flac';
 			downloadLink.classList.remove('hidden');
 		}
 	}

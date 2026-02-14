@@ -17,9 +17,11 @@
 					audioFiles: res.paths,
 					libraryStats: res.stats
 				} as Library;
-				updateLibraryStore(store, library);		
+				await updateLibraryStore(store, library);		
 				await refreshAudioMetadata(true);
 			}
+		}).catch((err) => {
+			console.error("Error adding library folders:", err);
 		});
 	}
 
@@ -37,9 +39,11 @@
 					audioFiles: res.paths,
 					libraryStats: res.stats
 				} as Library;
-				updateLibraryStore(store, library);		
+				await updateLibraryStore(store, library);		
 				await refreshAudioMetadata(true);
 			}
+		}).catch((err) => {
+			console.error("Error removing library folder:", err);
 		});
 	}
 
@@ -57,7 +61,7 @@
 	import { open } from '@tauri-apps/plugin-dialog';
 
 	import * as Accordion from "$lib/components/ui/accordion/index.js";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import { type LibraryDirInfo, getLastStoreUpdated } from "./libraryInfo.svelte";
 	import DataTable from "./library-location-table/data-table.svelte";
 	import { columns } from "./library-location-table/columns";
@@ -67,6 +71,7 @@
     import {
 		Plus,
 	} from "@lucide/svelte/icons";
+    import { LibraryLocationSelector } from "@components/media-player/locationSelectorDisplay.svelte";
 
 	let windowScaleFactor = $state(1);
 	let libraryLocationsInfo: Promise<LibraryDirInfo[]> = $derived.by(async () => {
@@ -169,16 +174,40 @@
 		dragDropEventUnlistener?.();
 		};
 	});
+
+
+	let accordionValue: string | undefined = $state(undefined);
+	$effect(() => {
+		if (LibraryLocationSelector.expanded) {
+			accordionValue = "library-location";
+		} else {
+			accordionValue = undefined;
+		}
+	});
+	$effect(() => {
+		if (accordionValue === "library-location") {
+			untrack(() => {
+				LibraryLocationSelector.expanded = true;
+			});
+		}
+		else if (accordionValue === undefined || accordionValue === "") {
+			untrack(() => {
+				LibraryLocationSelector.expanded = false;
+			});
+		}
+	});
+
+
 </script>
 
 <section
 		id="library-locations-container"
-		class="w-full p-3 bg-muted/40 border border-border/50 rounded-lg drag-over-target"
+		class="w-full p-3 py-2 bg-muted/40 border border-border/50 rounded-lg drag-over-target"
 	>
-	<Accordion.Root type="single" class="w-full" value={undefined}>
+	<Accordion.Root type="single" class="w-full" bind:value={accordionValue}>
 		<Accordion.Item value="library-location">
 			<Accordion.Trigger
-				class="pt-0 pb-1 pr-1 flex items-center justify-between w-full"
+				class="pt-0 pb-0.5 pr-1 flex items-center justify-between w-full"
 			>
 				<h2 class="mx-2 text-lg font-semibold">Library Locations</h2>
 			</Accordion.Trigger>

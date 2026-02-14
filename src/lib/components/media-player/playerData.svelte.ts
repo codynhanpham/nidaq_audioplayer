@@ -34,9 +34,9 @@ export type AudioInfo = {
     path: string; // Path to the audio file
     duration: number; // Duration of the audio file in seconds
     size: number; // Size of the audio file in bytes
-    sampleRate: number; // Sample rate of the audio file
+    sample_rate: number; // Sample rate of the audio file
     channels: number; // Number of audio channels
-    bitDepth: number; // Bit depth of the audio file
+    bit_depth: number; // Bit depth of the audio file
 
     chapters?: AudioChapterInfo[];
 }

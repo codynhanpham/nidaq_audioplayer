@@ -17,6 +17,10 @@
 	import { menuOpenExperiment } from './appmenu';
 	import { onMount } from 'svelte';
 
+	import { LibraryLocationSelector } from '@components/media-player/locationSelectorDisplay.svelte';
+    import { goto } from '$app/navigation';
+
+
 	let { data = $bindable<MenubarData>(null) }: { data: MenubarData } = $props();
 
 	let recentExperimentsMenu: MenubarExperimentInfo[] | null = $derived.by(() => {
@@ -40,6 +44,23 @@
 				document.getElementById('app-menubar-file')?.focus();
 			}
 		});
+
+		// Handle Ctrl+L
+		document.addEventListener('keydown', (event) => {
+			if (event.key === 'l' && event.ctrlKey && !event.shiftKey && !event.altKey) {
+				event.preventDefault();
+				if (!LibraryLocationSelector.display) {
+					LibraryLocationSelector.display = true;
+					LibraryLocationSelector.expanded = true;
+				}
+				goto('/library');
+			}
+		});
+
+		return () => {
+			// Clean up event listeners when component is destroyed
+			document.removeEventListener('keydown', () => {});
+		};
 	});
 </script>
 
@@ -52,7 +73,7 @@
 			class="my-0.5 py-0.5 font-normal text-muted-foreground hover:bg-accent hover:text-foreground"
 			id="app-menubar-file">File</Menubar.Trigger
 		>
-		<Menubar.Content sideOffset={4} class="z-[999999] isolate">
+		<Menubar.Content sideOffset={4} class="z-999999 isolate">
 			<Menubar.Item disabled>
 				Open...
 				<Menubar.Shortcut>Ctrl+O</Menubar.Shortcut>
@@ -69,6 +90,18 @@
 					{/if}
 				</Menubar.SubContent>
 			</Menubar.Sub>
+
+			<Menubar.Separator />
+			<Menubar.Item onclick={() => {
+				if (!LibraryLocationSelector.display) {
+					LibraryLocationSelector.display = true;
+					LibraryLocationSelector.expanded = true;
+				}
+				goto('/library');
+			}}>
+				Library Locations...
+				<Menubar.Shortcut>Ctrl+L</Menubar.Shortcut>
+			</Menubar.Item>
 
 			<Menubar.Separator />
 			<Menubar.Item disabled>
@@ -95,9 +128,9 @@
 	<Menubar.Menu>
 		<Menubar.Trigger
 			class="my-0.5 py-0.5 font-normal text-muted-foreground hover:bg-accent hover:text-foreground"
-			>Edit</Menubar.Trigger
+			>View</Menubar.Trigger
 		>
-		<Menubar.Content sideOffset={4} class="z-[999999] isolate">
+		<Menubar.Content sideOffset={4} class="z-999999 isolate">
 			<Menubar.Sub>
 				<Menubar.SubTrigger>Appearance</Menubar.SubTrigger>
 				<Menubar.SubContent class="w-[230px]" side="right" sideOffset={2} align="start">
@@ -119,6 +152,25 @@
 					</Menubar.CheckboxItem>
 				</Menubar.SubContent>
 			</Menubar.Sub>
+
+			<Menubar.Separator />
+			<Menubar.CheckboxItem checked={LibraryLocationSelector.display} onclick={() => {
+				if (!LibraryLocationSelector.display) {
+					LibraryLocationSelector.display = true;
+					// After turn on the display flag, if not already on the library page, navigate to the library page to show the selector
+					if (window.location.pathname.startsWith('/library')) {
+						return;
+					}
+					goto('/library');
+					LibraryLocationSelector.expanded = true;
+				}
+				else {
+					LibraryLocationSelector.display = false;
+					LibraryLocationSelector.expanded = false;
+				}
+			}}>
+				Library Location Selector
+			</Menubar.CheckboxItem>
 		</Menubar.Content>
 	</Menubar.Menu>
 </Menubar.Root>

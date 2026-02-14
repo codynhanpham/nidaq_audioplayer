@@ -1,9 +1,8 @@
 <script lang="ts" module>
-    import { libraryStore, type Library, rescanLibrary, getLastStoreUpdated, getLastLibbinHash, setLastLibbinHash } from "./components/index.js";
+    import { libraryStore, type Library, rescanLibrary, getLastStoreUpdated, getLastLibbinHash, setLastLibbinHash, listLibraryDirs } from "./components/index.js";
     (async () => {
         rescanLibrary(await libraryStore);
     })();
-    import { page } from "$app/state";
 
     let audioFilesList: Promise<string[]> = $derived.by(async () => {
         getLastStoreUpdated(); // Force update from store when it's updated
@@ -30,6 +29,14 @@
             return undefined;
         }
     }
+
+    function openLocationSelector() {
+        if (!LibraryLocationSelector.display) {
+            LibraryLocationSelector.display = true;
+            LibraryLocationSelector.expanded = true;
+        }
+    }
+
 
     let audioFiles: (AudioInfo | undefined)[] | null = $state(null);
 
@@ -122,45 +129,31 @@
         }
     }
 
-    let lastAudioFiles: (AudioInfo | undefined)[] | null = null;
-    let fully_rendered_once = false; // this flag determines whether must refresh audio metadata on load again
-
-    // Initial load
-    refreshAudioMetadata(true).then(() => {
-        fully_rendered_once = true; // Set this to true after the first load
-        if (page.url.pathname === '/library') {
-            return;
+    // Initial load, pull from bin cache if possible, otherwise load from scratch (which will then save to cache for next time)
+    refreshAudioMetadata(true, false).then(async () => {
+        // If no audio file or no dir selected, then open the location selector to prompt user to select a dir
+        const currentdirs = await listLibraryDirs(await libraryStore);
+        if (!currentdirs || currentdirs.length === 0 || (!audioFiles || audioFiles.length === 0)) {
+            openLocationSelector();
         }
-
-        // Handle the case where this is triggered while the user is not yet at this page
-        // (during prefetching): should do what onDestroy does
-        audioFilesList.then((data) => {
-            const numfiles = data.length;
-            if (lastAudioFiles === null && audioFiles?.length === numfiles) {
-                lastAudioFiles = audioFiles;
-                audioFiles = null; // Clear the audioFiles state to free up memory
-            }
-        });
     });
 
 </script>
 
 <script lang="ts">
     import { invoke } from "@tauri-apps/api/core";
-
-	import { getCurrentWindow } from '@tauri-apps/api/window';
     import { sep, appDataDir } from '@tauri-apps/api/path';
 
     import { Button } from '$lib/components/ui/button/index.js'
     import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 
-    import { getCurrentWebview } from "@tauri-apps/api/webview";
-    import type { UnlistenFn } from "@tauri-apps/api/event";
-    import { onMount, onDestroy } from "svelte";
-    import { beforeNavigate } from "$app/navigation";
+    import VirtualList from '@humanspeak/svelte-virtual-list';
+
+    import { onMount } from "svelte";
 
     import {
-        FileMusic
+        FileMusic,
+        TableOfContents,
     } from "@lucide/svelte/icons";
     
     import LibrarySelector from './components/library-selector.svelte';
@@ -168,6 +161,10 @@
 	import { wsSendOnce } from '@components/media-player/tasks/wsconnection.svelte';
     import { StatusBarData } from "@components/app-statusbar";
 
+	import { LibraryLocationSelector } from '@components/media-player/locationSelectorDisplay.svelte';
+    import { formatDuration } from "@components/media-player/player.svelte";
+    import { cn } from "$lib/utils";
+    import { goto } from "$app/navigation";
 
 
     function handleAudioTrackSelect(data: AudioInfo | undefined) {
@@ -213,130 +210,101 @@
         }
     }
 
-    // Crazy workaround to speed up rendering:
-    // On destroy, save the data to a non-reactive variable and keep it there
-    // On page load, since the reactive audioFiles is empty, Svelte won't spend ages to render before responding to navigation clicks
-    // Page transition thus happens immediately, then only onMount that audioFiles is restored and the page is rendered
-    onDestroy(() => {
-        audioFilesList.then((data) => {
-            const numfiles = data.length;
-            if (lastAudioFiles === null && audioFiles?.length === numfiles) {
-                lastAudioFiles = audioFiles;
-                audioFiles = null; // Clear the audioFiles state to free up memory
-            }
-        });
-    });
 
-    // Handle user nav while page still rendering
-    let stop_rendering = $state(false);
-    beforeNavigate(() => {
-        stop_rendering = true; // this breaks the main rendering loop in onMount
-        // flush audioFiles back to lastAudioFiles
-        if (audioFiles && audioFiles.length > 0) {
-            lastAudioFiles?.push(...audioFiles);
-            audioFiles = null; // Clear the audioFiles state to free up memory
-        }
-    });
+    function formatChannelCount(count: number) {
+        if (count === 1) return "Mono";
+        if (count === 2) return "Stereo";
+        if (count === 4) return "Quadraphonic";
+        return `${count} Channels`;
+    }
+
+
+
 
     onMount(() => {
-        // This load audioFiles back from lastAudioFiles
-        if (lastAudioFiles && fully_rendered_once) {
-            function breakTask() {
-                return new Promise((resolve) => {
-                    setTimeout(resolve, 0);
-                });
-            }
-            audioFiles = [];
-            (async () => {
-                for (let i = 0; i < lastAudioFiles.length; i++) {
-                    const file = lastAudioFiles[i];
-                    if (file) {
-                        audioFiles.push(file);
-                        
-                        // render the first 50 items immediately. render the rest once every 100. this also blocks page navigation as a bonus, so that audioFiles and lastAudioFiles get reset properly in between page loads
-                        if (i <= 50) {
-                            audioFiles = audioFiles; // kinda strange, but reassigning the $state var will update the #each block
-                            await breakTask();
-                        } else {
-                            if (i % 100 === 0) {
-                                audioFiles = audioFiles;
-                                await breakTask(); // wait for the next event loop to render the next batch
-                            }
-                        }
-                    }
-                    if (stop_rendering) {
-                        stop_rendering = false;
-                        break;
-                    }
-                }
-                audioFiles = audioFiles; // render the rest
-                lastAudioFiles = null;
-            })();
-        }
-        else {
-            refreshAudioMetadata(true).then(() => {
-                fully_rendered_once = true;
-            });
-        }
     });
 
 </script>
 
-<main class="w-full h-full min-h-fit space-y-2 p-2">
-    <LibrarySelector />
+<main class="w-full h-full min-h-fit space-y-2">
+    <div class="w-full h-full flex flex-col items-start justify-start">
+        {#if LibraryLocationSelector.display}
+            <div class="w-full max-h-[60vh] shrink-0 overflow-y-auto p-2 pb-1" id="library-location-selector-container">
+                <LibrarySelector />
+            </div>
+        {/if}
 
-    {#if audioFiles === null}
-        <ul class="grid gap-x-4 gap-y-4 grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] md:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] my-3 mx-2">
-            {#each Array.from({ length: 12 }) as _, i}
-                <li class="w-full h-full flex flex-col items-center justify-start">
-                    <Skeleton class="p-0 !w-full h-full !aspect-square rounded-sm overflow-hidden" title={`Loading...`} />
-                    <div class="w-full h-fit text-center flex flex-col items-center justify-start">
-                        <Skeleton class="px-1 pt-1.5 pb-0.5 inline mt-2 w-3/4 !h-4 max-w-full text-sm text-wrap line-clamp-1 text-ellipsis" />
-                        <Skeleton class="text-xs text-muted-foreground mt-1 w-1/2 !h-3 hover:text-foreground/80" />
-                    </div>
-                </li>
-            {/each}
-        </ul>
-    {:else if audioFiles && audioFiles.length > 0}
-        <!-- Display loaded audio files -->
-        <ul class="grid gap-x-4 gap-y-4 grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] md:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] my-3 mx-2">
-            {#each audioFiles as file, i (file?.path)}
-                {#if file}
-                    <!-- <li>{file.name || file.path.split("\\").pop()}</li> -->
-                    <li class="w-full h-full flex flex-col items-center justify-start">
-                        {#if file.thumbnail}
-                            <Button variant="ghost" class="p-0 w-full h-fit rounded-sm overflow-hidden" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
-                                <img src={file.thumbnail} alt={`${file.name || file.path.split(sep()).pop()} cover image`} class="w-full h-fit aspect-square object-cover" />
-                            </Button>
-                        {:else}
-                            <Button variant="ghost" class="w-full h-fit aspect-square flex items-center justify-center bg-muted rounded-sm" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
-                                <FileMusic class="size-1/3" />
-                            </Button>
-                        {/if}
-                        <div class="w-full h-fit text-center flex flex-col items-center justify-start">
-                            <Button variant="link" class="px-1 pt-1.5 pb-0.5 inline w-fit !h-fit max-w-full text-sm text-wrap line-clamp-1 text-ellipsis" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
-                                {file.name || file.path.split(sep()).pop()}
-                            </Button>
-                            <a href="##" class="text-xs text-muted-foreground hover:text-foreground/80" onclick={() => handleArtistSelect(file)}>{file.artist || "Unknown Artist"}</a>
-
+        {#if audioFiles === null}
+            <VirtualList 
+                items={Array.from({ length: 5 }, (_, i) => i)}
+                viewportClass={cn("virtual-list-viewport", LibraryLocationSelector.display ? "mb-0.5" : "mb-0")}
+            >
+                {#snippet renderItem()}
+                    <div class="w-full flex flex-row items-center justify-start my-2 px-2 gap-2">
+                        <Skeleton class="p-0 size-20 sm:size-22 md:size-24 lg:size-26 aspect-square! rounded-sm" title={`Loading...`} />
+                        <div class="w-full h-fit text-left flex flex-col items-start justify-start">
+                            <Skeleton class="px-1 pt-1.5 pb-0.5 inline mt-0.5 w-3/4 h-5! max-w-full text-sm text-wrap line-clamp-1 text-ellipsis" />
+                            <Skeleton class="text-xs text-muted-foreground mt-1 w-1/2 h-3.5! hover:text-foreground/80" />
                         </div>
-
-                    </li>
-                {/if}
-            {/each}
-        </ul>
-    {:else}
-        <!-- No audio files found, just keep the skeleton state for now -->
-        <ul class="grid gap-x-4 gap-y-4 grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] md:grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] my-3 mx-2">
-            {#each Array.from({ length: 12 }) as _, i}
-                <li class="w-full h-full flex flex-col items-center justify-start">
-                    <Skeleton class="p-0 !w-full h-full !aspect-square rounded-sm overflow-hidden" title={`Loading...`} />
-                    <div class="w-full h-fit text-center flex flex-col items-center justify-start">
-                        <Skeleton class="px-1 pt-1.5 pb-0.5 inline mt-2 w-3/4 !h-4 max-w-full text-sm text-wrap line-clamp-1 text-ellipsis" />
-                        <Skeleton class="text-xs text-muted-foreground mt-1 w-1/2 !h-3 hover:text-foreground/80" />
                     </div>
-                </li>
-            {/each}
-        </ul>
-    {/if}
+                {/snippet}
+            </VirtualList>
+        {:else if audioFiles && audioFiles.length > 0}
+            <VirtualList 
+                items={audioFiles}
+                viewportClass={cn("virtual-list-viewport", LibraryLocationSelector.display ? "mb-0.5" : "mb-0")}
+            >
+                {#snippet renderItem(file)}
+                    {#if file}
+                        <div class="w-full flex flex-row items-center justify-start my-0.5 sm:my-1 px-2 gap-2.5 sm:gap-3 md:gap-4 hover:bg-muted/50 rounded-lg">
+                            {#if file.thumbnail}
+                                <Button variant="ghost" class="p-0 my-2 size-20 sm:size-22 md:size-24 lg:size-26 rounded-sm overflow-hidden" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
+                                    <img src={file.thumbnail} alt={`${file.name || file.path.split(sep()).pop()} cover image`} class="size-20 sm:size-22 md:size-24 lg:size-26 aspect-square object-cover" />
+                                </Button>
+                            {:else}
+                                <Button variant="ghost" class="size-20 sm:size-22 md:size-24 lg:size-26 aspect-square flex items-center justify-center bg-muted rounded-sm" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
+                                    <FileMusic class="size-1/3" />
+                                </Button>
+                            {/if}
+                            <div class="w-full h-fit flex flex-col items-start justify-start">
+                                <Button variant="link" class="w-full h-fit p-0 text-sm md:text-base text-left whitespace-normal overflow-hidden line-clamp-2 hover:no-underline rounded-none" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
+                                    {file.name || file.path.split(sep()).pop()}
+                                </Button>
+                                <a href="##" class="mt-0.5 text-xs md:text-sm text-left text-muted-foreground hover:text-foreground/80 whitespace-normal overflow-hidden line-clamp-2" title={file.artist || "Unknown Artist"} onclick={() => handleArtistSelect(file)}>{file.artist || "Unknown Artist"}</a>
+                                <span class="text-[0.6rem] sm:text-xs text-left text-muted-foreground mt-0.5 whitespace-normal overflow-hidden line-clamp-2">
+                                    {file.sample_rate} Hz • {file.bit_depth}-bit • {formatChannelCount(file.channels)}
+                                </span>
+                            </div>
+                            <div class="w-fit h-fit flex flex-col items-end justify-start">
+                                <span class="mr-1 sm:ml-2 md:ml-4 text-xs md:text-sm text-muted-foreground whitespace-normal overflow-hidden line-clamp-2">{formatDuration(file.duration)}</span>
+                                {#if file.chapters && file.chapters.length > 0}
+                                    <div class="w-fit h-fit flex flex-row items-center justify-center">
+                                        <span class="text-xs md:text-sm text-muted-foreground">{file.chapters.length}</span>
+                                        <span class="sr-only lg:not-sr-only lg:inline text-sm lg:ml-1! text-muted-foreground">Chapters</span>
+                                        <TableOfContents class="ml-1 size-3.5 sm:size-4 md:size-4.5 lg:hidden text-muted-foreground" />
+                                    </div>
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
+                {/snippet}
+            </VirtualList>
+        {:else}
+            <!-- No audio files found, just keep the skeleton state for now -->
+            <VirtualList 
+                items={Array.from({ length: 5 }, (_, i) => i)}
+                viewportClass={cn("virtual-list-viewport", LibraryLocationSelector.display ? "mb-0.5" : "mb-0")}
+            >
+                {#snippet renderItem()}
+                    <div class="w-full flex flex-row items-center justify-start my-2 px-2 gap-2">
+                        <Skeleton class="p-0 size-20 sm:size-22 md:size-24 lg:size-26 aspect-square! rounded-sm" title={`Loading...`} />
+                        <div class="w-full h-fit text-left flex flex-col items-start justify-start">
+                            <Skeleton class="px-1 pt-1.5 pb-0.5 inline mt-0.5 w-3/4 h-5! max-w-full text-sm text-wrap line-clamp-1 text-ellipsis" />
+                            <Skeleton class="text-xs text-muted-foreground mt-1 w-1/2 h-3.5! hover:text-foreground/80" />
+                        </div>
+                    </div>
+                {/snippet}
+            </VirtualList>
+        {/if}
+    </div>
 </main>
