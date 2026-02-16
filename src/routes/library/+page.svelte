@@ -1,5 +1,6 @@
 <script lang="ts" module>
     import { libraryStore, type Library, rescanLibrary, getLastStoreUpdated, getLastLibbinHash, setLastLibbinHash, listLibraryDirs } from "./components/index.js";
+	import { cleanupHistory } from "$src/routes/history/history.svelte";
     (async () => {
         rescanLibrary(await libraryStore);
     })();
@@ -60,6 +61,9 @@
                     // Set cache here ...
 
                     audioFiles = cachedBinData;
+                    // Clean up history of any files that no longer exist in the library
+                    const currentAudioFiles = audioFiles ? audioFiles.filter((item): item is AudioInfo => item !== undefined) : [];
+                    cleanupHistory(currentAudioFiles);
                     return;
                 }
             }
@@ -103,6 +107,9 @@
 
         
         audioFiles = finalFilteredContent;
+        // Clean up history of any files that no longer exist in the library
+        const currentAudioFiles = audioFiles ? audioFiles.filter((item): item is AudioInfo => item !== undefined) : [];
+        cleanupHistory(currentAudioFiles);
 
         if (!writefile) {
             return;
@@ -192,6 +199,7 @@
         const currentdirs = await listLibraryDirs(await libraryStore);
         if (!currentdirs || currentdirs.length === 0 || (!audioFiles || audioFiles.length === 0)) {
             openLocationSelector();
+            cleanupHistory(null);
         }
     });
 

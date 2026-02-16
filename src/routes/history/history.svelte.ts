@@ -49,6 +49,34 @@ export function addToHistory(audioInfo: AudioInfo) {
     });
 }
 
+/**
+ * Cleanup history by removing entries that were removed from Library Location or no longer exist on disk
+ * Generally, this should be called when the master AudioInfo list is updated, which happens when the user opens the app or changes the Library Location
+ */
+export function cleanupHistory(currentAudioInfoList: AudioInfo[] | null) {
+    if (!HistoryAudioInfo.audioInfo) {
+        return;
+    }
+
+    if (!currentAudioInfoList) {
+        // If there is no current audio info list, clear the history
+        HistoryAudioInfo.audioInfo = null;
+        historyStore.then(store => {
+            saveHistoryToStore(store);
+        });
+        return;
+    }
+
+    // Remove any history entries that are not in the current audio info list
+    HistoryAudioInfo.audioInfo = HistoryAudioInfo.audioInfo.filter(info => {
+        return currentAudioInfoList.some(current => current.path === info.path);
+    });
+    // Save updated history to store
+    historyStore.then(store => {
+        saveHistoryToStore(store);
+    });
+}
+
 export function clearHistory() {
     HistoryAudioInfo.audioInfo = null;
     historyStore.then(store => {
