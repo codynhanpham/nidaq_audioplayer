@@ -129,45 +129,9 @@
         }
     }
 
-    // Initial load, pull from bin cache if possible, otherwise load from scratch (which will then save to cache for next time)
-    refreshAudioMetadata(true, false).then(async () => {
-        // If no audio file or no dir selected, then open the location selector to prompt user to select a dir
-        const currentdirs = await listLibraryDirs(await libraryStore);
-        if (!currentdirs || currentdirs.length === 0 || (!audioFiles || audioFiles.length === 0)) {
-            openLocationSelector();
-        }
-    });
 
-</script>
-
-<script lang="ts">
-    import { invoke } from "@tauri-apps/api/core";
-    import { sep, appDataDir } from '@tauri-apps/api/path';
-
-    import { Button } from '$lib/components/ui/button/index.js'
-    import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-
-    import VirtualList from '@humanspeak/svelte-virtual-list';
-
-    import { onMount } from "svelte";
-
-    import {
-        FileMusic,
-        TableOfContents,
-    } from "@lucide/svelte/icons";
     
-    import LibrarySelector from './components/library-selector.svelte';
-    import { type AudioInfo, MediaPlayerData } from "$lib/components/media-player/playerData.svelte.js";
-	import { wsSendOnce } from '@components/media-player/tasks/wsconnection.svelte';
-    import { StatusBarData } from "@components/app-statusbar";
-
-	import { LibraryLocationSelector } from '@components/media-player/locationSelectorDisplay.svelte';
-    import { formatDuration } from "@components/media-player/player.svelte";
-    import { cn } from "$lib/utils";
-    import { goto } from "$app/navigation";
-
-
-    function handleAudioTrackSelect(data: AudioInfo | undefined) {
+    export function handleAudioTrackSelect(data: AudioInfo | undefined) {
         if (!data) {
             return;
         }
@@ -203,20 +167,61 @@
         wsSendOnce({
             task: "play"
         });
+
+        addToHistory(data);
     }
-    function handleArtistSelect(data: AudioInfo | undefined) {
+    export function handleArtistSelect(data: AudioInfo | undefined) {
         if (!data) {
             return;
         }
     }
 
 
-    function formatChannelCount(count: number) {
+    export function formatChannelCount(count: number) {
         if (count === 1) return "Mono";
         if (count === 2) return "Stereo";
         if (count === 4) return "Quadraphonic";
         return `${count} Channels`;
     }
+
+
+
+    // Initial load, pull from bin cache if possible, otherwise load from scratch (which will then save to cache for next time)
+    refreshAudioMetadata(true, false).then(async () => {
+        // If no audio file or no dir selected, then open the location selector to prompt user to select a dir
+        const currentdirs = await listLibraryDirs(await libraryStore);
+        if (!currentdirs || currentdirs.length === 0 || (!audioFiles || audioFiles.length === 0)) {
+            openLocationSelector();
+        }
+    });
+
+</script>
+
+<script lang="ts">
+    import { invoke } from "@tauri-apps/api/core";
+    import { sep, appDataDir } from '@tauri-apps/api/path';
+
+    import { Button } from '$lib/components/ui/button/index.js'
+    import { Skeleton } from "$lib/components/ui/skeleton/index.js";
+
+    import VirtualList from '@humanspeak/svelte-virtual-list';
+
+    import { onMount } from "svelte";
+
+    import {
+        FileMusic,
+        TableOfContents,
+    } from "@lucide/svelte/icons";
+    
+    import LibrarySelector from './components/library-selector.svelte';
+    import { type AudioInfo, MediaPlayerData } from "$lib/components/media-player/playerData.svelte.js";
+	import { wsSendOnce } from '@components/media-player/tasks/wsconnection.svelte';
+    import { StatusBarData } from "@components/app-statusbar";
+    import { addToHistory } from "../history/history.svelte.js";
+
+	import { LibraryLocationSelector } from '@components/media-player/locationSelectorDisplay.svelte';
+    import { formatDuration } from "@components/media-player/player.svelte";
+    import { cn } from "$lib/utils";
 
 
 
@@ -256,13 +261,13 @@
             >
                 {#snippet renderItem(file)}
                     {#if file}
-                        <div class="w-full flex flex-row items-center justify-start my-0.5 sm:my-1 px-2 gap-2.5 sm:gap-3 md:gap-4 hover:bg-muted/50 rounded-lg">
+                        <div class="w-full flex flex-row items-center justify-start my-0.5 sm:my-1 px-2 gap-2.5 sm:gap-3 md:gap-4 hover:bg-muted/50 rounded-lg first:mt-1.5 last:mb-1.5">
                             {#if file.thumbnail}
-                                <Button variant="ghost" class="p-0 my-2 size-20 sm:size-22 md:size-24 lg:size-26 rounded-sm overflow-hidden" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
+                                <Button variant="ghost" class="p-0 my-1.5 size-20 sm:size-22 md:size-24 lg:size-26 rounded-sm overflow-hidden" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
                                     <img src={file.thumbnail} alt={`${file.name || file.path.split(sep()).pop()} cover image`} class="size-20 sm:size-22 md:size-24 lg:size-26 aspect-square object-cover" />
                                 </Button>
                             {:else}
-                                <Button variant="ghost" class="size-20 sm:size-22 md:size-24 lg:size-26 aspect-square flex items-center justify-center bg-muted rounded-sm" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
+                                <Button variant="ghost" class="p-0 my-1.5 size-20 sm:size-22 md:size-24 lg:size-26 aspect-square flex items-center justify-center bg-muted rounded-sm" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
                                     <FileMusic class="size-1/3" />
                                 </Button>
                             {/if}
