@@ -280,10 +280,10 @@
                                 </Button>
                             {/if}
                             <div class="w-full h-fit flex flex-col items-start justify-start">
-                                <Button variant="link" class="w-full h-fit p-0 text-sm md:text-base text-left whitespace-normal overflow-hidden line-clamp-2 hover:no-underline rounded-none" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
+                                <Button variant="link" class="w-full h-fit p-0 text-sm md:text-base text-left whitespace-normal break-all overflow-hidden line-clamp-2 hover:no-underline rounded-none" title={file.name || file.path.split(sep()).pop()} onclick={() => handleAudioTrackSelect(file)}>
                                     {file.name || file.path.split(sep()).pop()}
                                 </Button>
-                                <a href="##" class="mt-0.5 text-xs md:text-sm text-left text-muted-foreground hover:text-foreground/80 whitespace-normal overflow-hidden line-clamp-2" title={file.artist || "Unknown Artist"} onclick={() => handleArtistSelect(file)}>{file.artist || "Unknown Artist"}</a>
+                                <a href="##" class="mt-0.5 text-xs md:text-sm text-left text-muted-foreground hover:text-foreground/80 whitespace-normal break-all overflow-hidden line-clamp-2" title={file.artist || "Unknown Artist"} onclick={() => handleArtistSelect(file)}>{file.artist || "Unknown Artist"}</a>
                                 <span class="text-[0.6rem] sm:text-xs text-left text-muted-foreground mt-0.5 whitespace-normal overflow-hidden line-clamp-2">
                                     {file.sample_rate} Hz • {file.bit_depth}-bit • {formatChannelCount(file.channels)}
                                 </span>

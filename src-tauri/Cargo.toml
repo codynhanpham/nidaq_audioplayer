@@ -1,6 +1,6 @@
 [package]
 name = "nidaq_audioplayer"
-version = "0.4.1"
+version = "0.4.2"
 description = "NI-DAQmxAudioPlayer"
 authors = ["Cody Nhan Pham"]
 edition = "2021"
